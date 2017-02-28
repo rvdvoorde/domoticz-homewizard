@@ -2,7 +2,7 @@
 ##
 ##           Author:         Raymond Van de Voorde
 ##           Version:        1.0
-##           Last modified:  26-02-2017
+##           Last modified:  28-02-2017
 ##
 """
 <plugin key="Homewizard" name="Homewizard" author="Wobbles" version="1.0" externallink="https://www.homewizard.nl/">
@@ -25,6 +25,7 @@ import http.client
 import json
 import re
 import time
+import base64
 
 # Homewizard status variables
 hw_version = ""
@@ -37,10 +38,11 @@ term_id = 111
 en_id = 101
 rain_id = 201
 wind_id = 202
+preset_id = 121
 
 # Domoticz call back functions
 def onStart():
-    global rain_id, wind_id
+    global rain_id, wind_id, preset_id
     if Parameters["Mode6"] == "Debug":
         Domoticz.Debugging(1)
         DumpConfigToLog()    
@@ -57,12 +59,20 @@ def onStart():
     # Get all switches and dimmers
     Switches()
 
+    # Add the preset selector switch
+    if ( preset_id not in Devices ):
+        LevelActions = "LevelActions:"+stringToBase64("||||")+";"
+        LevelNames = "LevelNames:"+stringToBase64("Off|Home|Away|Sleep|Holiday")+";"
+        Other = "LevelOffHidden:dHJ1ZQ==;SelectorStyle:MA==" # true is "dHJ1ZQ==", false is "ZmFsc2U=",0 is "MA==", 1 is "MQ=="
+        Options = LevelActions+LevelNames+Other
+        Domoticz.Device(Name="Preset", Unit=preset_id, TypeName="Selector Switch", Options=Options).Create()
+
     # Add the rainmeter
-    if ( 201 not in Devices ):
+    if ( rain_id not in Devices ):
         Domoticz.Device(Name="Regen",  Unit=rain_id, Type=85, Subtype=3).Create()
 
     # Add the windmeter
-    if ( 202 not in Devices ):
+    if ( wind_id not in Devices ):
         Domoticz.Device(Name="Wind",  Unit=wind_id, Type=86, Subtype=4).Create()    
     
     if is_number(Parameters["Mode1"]):
@@ -80,12 +90,18 @@ def onConnect(Status, Description):
     return True
 
 def onMessage(Data, Status, Extra):
-    global hw_status, hw_route, hw_preset, term_id, rain_id, wind_id
+    global hw_status, hw_route, hw_preset, term_id, rain_id, wind_id, preset_id
 
-    if hw_status == "ok":            
-        ## hw_preset = Data["response"]["preset"]
-        hw_preset = GetValue(Data["response"], "preset", "0")
-        # UpdateDevice(1, 0, hw_preset)  
+    if hw_status == "ok":                    
+        hw_preset = GetValue(Data["response"], "preset", 0)
+        if hw_preset == 0:a
+            UpdateDevice(preset_id, 0, "10")
+        elif hw_preset == 1:
+            UpdateDevice(preset_id, 0, "20")
+        elif hw_preset == 2:
+            UpdateDevice(preset_id, 0, "30")
+        elif hw_preset == 3:
+            UpdateDevice(preset_id, 0, "40")
 
         try:
             # Update the wind device
@@ -144,8 +160,19 @@ def onMessage(Data, Status, Extra):
     return True
 
 def onCommand(Unit, Command, Level, Hue):
-    global hw_status
+    global hw_status, preset_id
     hw_id = Unit - 1
+
+    if Unit == preset_id:
+        if Level == 10:
+            sendMessage2("preset/0")
+        elif Level == 20:
+            sendMessage2("preset/1")
+        elif Level == 30:
+            sendMessage2("preset/2")
+        elif Level == 40:
+            sendMessage2("preset/3")
+        return True
     
     if (Level > 0):        
         sendMessage2("sw/dim/"+str(hw_id)+"/"+str(Level))
@@ -353,5 +380,11 @@ def is_number(s):
         return True
     except ValueError:
         return False
+
+def stringToBase64(s):
+    return base64.b64encode(s.encode('utf-8')).decode("utf-8")
+
+def base64ToString(b):
+    return base64.b64decode(b).decode('utf-8')
 
 0
