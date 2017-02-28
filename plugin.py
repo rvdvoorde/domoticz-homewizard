@@ -220,7 +220,10 @@ def Switches():
     if hw_status == "ok":        
         for Switch in data["response"]:
             sw_id = Switch["id"] + 1
-            sw_status = Switch["status"].lower()
+            if 'status' in Switch:
+                sw_status = Switch["status"].lower()
+            else:
+                sw_status = 'off'
             sw_type = Switch["type"].lower()
             sw_name = Switch["name"]
             
