@@ -82,11 +82,12 @@ def onConnect(Status, Description):
 def onMessage(Data, Status, Extra):
     global hw_status, hw_route, hw_preset, term_id, rain_id, wind_id
 
-    try:        
-        if hw_status == "ok":            
-            hw_preset = Data["response"]["preset"]
-            # UpdateDevice(1, 0, hw_preset)  
+    if hw_status == "ok":            
+        ## hw_preset = Data["response"]["preset"]
+        hw_preset = GetValue(Data["response"], "preset", "0")
+        # UpdateDevice(1, 0, hw_preset)  
 
+        try:
             # Update the wind device
             wind_0 = float(Data["response"]["windmeters"][0]["ws"] / 3.6) * 10
             wind_1 = Data["response"]["windmeters"][0]["dir"]
@@ -95,12 +96,18 @@ def onMessage(Data, Status, Extra):
             wind_3 = Data["response"]["windmeters"][0]["wc"]
             wind_4 = Data["response"]["windmeters"][0]["te"]
             UpdateDevice(wind_id, 0, str(wind_1[1])+";"+str(wind_1[0])+";"+str(wind_0)+";"+str(wind_2)+";"+str(wind_4)+";"+str(wind_3))
+        except:
+            Domoticz.Debug("Error reading wind values")
 
+        try:
             # Update the rain device            
             rain_0 = Data["response"]["rainmeters"][0]["mm"]
             rain_1 = Data["response"]["rainmeters"][0]["3h"]
             UpdateDevice(rain_id, 0, str(rain_1) + ";" + str(rain_0))
+        except:
+            Domoticz.Debug("Error reading rainmeter values")
 
+        try:
             # Update the thermometes
             x = 0            
             for thermometer in Data["response"]["thermometers"]:
@@ -108,12 +115,15 @@ def onMessage(Data, Status, Extra):
                 tmp_1 = thermometer["hu"]
                 UpdateDevice(term_id+x, 0, str(tmp_0) + ";" + str(tmp_1) + ";" + str(HumStat(tmp_1)))
                 x = x + 1
-
+        except:
+            Domoticz.Debug("Error reading thermometers values")
+                
+        try:
             # Update the switches
             for Switch in Data["response"]["switches"]:
                 sw_id = Switch["id"] + 1
-                sw_status = Switch["status"].lower()
-                sw_type = Switch["type"].lower()                
+                sw_status = GetValue(Switch, "status", "off").lower()
+                sw_type = GetValue(Switch, "type", "switch").lower()              
 
                 if ( sw_status == "on" ):
                     sw_status = "1"
@@ -128,8 +138,9 @@ def onMessage(Data, Status, Extra):
                         UpdateDevice(sw_id, 0, str(Switch["dimlevel"]))
                     else:                    
                         UpdateDevice(sw_id, 2, str(Switch["dimlevel"]))
-    except:
-        Domoticz.Log("Failure at analyzing recieved data.")    
+        except:
+            Domoticz.Debug("Error reading switch values")
+        
     return True
 
 def onCommand(Unit, Command, Level, Hue):
@@ -192,8 +203,8 @@ def EnergyMeters():
         for Energymeter in data["response"]:
             if ( en_id+i not in Devices ):
                 Domoticz.Device(Name="Energymeter",  Unit=en_id+i, Type=243, Subtype=29).Create()
-            en_0 = Energymeter["po"]
-            en_1 = Energymeter["dayTotal"]
+            en_0 = GetValue(Energymeter, "po", "0")
+            en_1 = GetValue(Energymeter, "dayTotal", "0")
             UpdateDevice(en_id+i, 0, str(en_0)+";"+str(en_1 * 1000))
             i = i + 1
     return
@@ -207,8 +218,8 @@ def Thermometers():
         for Thermometer in data["response"]:
             if ( term_id+i not in Devices ):
                 Domoticz.Device(Name=Thermometer["name"],  Unit=term_id+i, Type=82, Subtype=7).Create()
-            te_0 = Thermometer["te"]
-            hu_0 = Thermometer["hu"]
+            te_0 = GetValue(Thermometer, "te", "0")
+            hu_0 = GetValue(Thermometer, "hu", "0")
             UpdateDevice(term_id+i, 0, str(te_0)+";"+str(hu_0)+";"+str(HumStat(hu_0)))
             i = i + 1
     return
@@ -220,12 +231,9 @@ def Switches():
     if hw_status == "ok":        
         for Switch in data["response"]:
             sw_id = Switch["id"] + 1
-            if 'status' in Switch:
-                sw_status = Switch["status"].lower()
-            else:
-                sw_status = 'off'
-            sw_type = Switch["type"].lower()
-            sw_name = Switch["name"]
+            sw_status = GetValue(Switch, "status", "off").lower()            
+            sw_type = GetValue(Switch, "type", "switch").lower()            
+            sw_name = GetValue(Switch, "name", "switch").lower()            
             
             if ( sw_id not in Devices ):                
                 if ( sw_type == "switch" ):
@@ -308,6 +316,12 @@ def HWConnect():
     return data
 
 
+def GetValue(arr, sKey, defValue):
+    if str(sKey) in arr:
+        return arr[str(sKey)]
+    else:
+        return defValue
+    
 def UpdateDevice(Unit, nValue, sValue):
     global rain_id
 # Make sure that the Domoticz device still exists (they can be deleted) before updating it 
