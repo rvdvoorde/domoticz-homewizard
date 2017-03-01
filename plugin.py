@@ -2,7 +2,7 @@
 ##
 ##           Author:         Raymond Van de Voorde
 ##           Version:        1.0
-##           Last modified:  28-02-2017
+##           Last modified:  01-03-2017
 ##
 """
 <plugin key="Homewizard" name="Homewizard" author="Wobbles" version="1.0" externallink="https://www.homewizard.nl/">
@@ -95,13 +95,13 @@ def onMessage(Data, Status, Extra):
     if hw_status == "ok":                    
         hw_preset = GetValue(Data["response"], "preset", 0)
         if hw_preset == 0:
-            UpdateDevice(preset_id, 0, "10")
+            UpdateDevice(preset_id, 2, "10")
         elif hw_preset == 1:
-            UpdateDevice(preset_id, 0, "20")
+            UpdateDevice(preset_id, 2, "20")
         elif hw_preset == 2:
-            UpdateDevice(preset_id, 0, "30")
+            UpdateDevice(preset_id, 2, "30")
         elif hw_preset == 3:
-            UpdateDevice(preset_id, 0, "40")
+            UpdateDevice(preset_id, 2, "40")
 
         try:
             # Update the wind device
