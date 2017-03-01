@@ -94,7 +94,7 @@ def onMessage(Data, Status, Extra):
 
     if hw_status == "ok":                    
         hw_preset = GetValue(Data["response"], "preset", 0)
-        if hw_preset == 0:a
+        if hw_preset == 0:
             UpdateDevice(preset_id, 0, "10")
         elif hw_preset == 1:
             UpdateDevice(preset_id, 0, "20")
