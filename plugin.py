@@ -188,10 +188,6 @@ def onCommand(Unit, Command, Level, Hue):
     else:
         return False
 
-def onNotification(name, subject, text, status, priority, sound, image_file):
-    Domoticz.Log("Notification: " + str(name) + ", subject: " + str(subject) + ", text: " + str(text) + ", status: " + str(status))
-    return
-
 def onHeartbeat():    
     sendMessage("get-status")
     EnergyMeters()
