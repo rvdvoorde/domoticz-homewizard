@@ -2,7 +2,7 @@
 ##
 ##           Author:         Raymond Van de Voorde
 ##           Version:        1.0
-##           Last modified:  01-03-2017
+##           Last modified:  02-03-2017
 ##
 """
 <plugin key="Homewizard" name="Homewizard" author="Wobbles" version="1.0" externallink="https://www.homewizard.nl/">
@@ -23,8 +23,6 @@
 import Domoticz
 import http.client
 import json
-import re
-import time
 import base64
 
 # Homewizard status variables
@@ -32,24 +30,24 @@ hw_version = ""
 hw_status = "Unknown"
 hw_route = ""
 hw_preset = 0
+hw_SensorTypes = {}
 
 #constants
-term_id = 111
-en_id = 101
-rain_id = 201
-wind_id = 202
-preset_id = 121
+hwid_offset = {"term_id": 111, "en_id": 101, "rain_id": 201, "wind_id": 202, "preset_id": 121, "sensor_id": 61, "smoke_id": 51}
 
 # Domoticz call back functions
 def onStart():
-    global rain_id, wind_id, preset_id
+    global hwid_offset
     if Parameters["Mode6"] == "Debug":
         Domoticz.Debugging(1)
         DumpConfigToLog()    
 
     # Test if the first connection is ok
-    HWConnect()
+    rData = HWConnect()
 
+    # Get all KAKU sensors
+    Sensors(rData)
+    
     # Get all thermometers
     Thermometers()
 
@@ -59,21 +57,21 @@ def onStart():
     # Get all switches and dimmers
     Switches()
 
-    # Add the preset selector switch
-    if ( preset_id not in Devices ):
+    # Add the preset selector switch    
+    if ( hwid_offset["preset_id"] not in Devices ):
         LevelActions = "LevelActions:"+stringToBase64("||||")+";"
         LevelNames = "LevelNames:"+stringToBase64("Off|Home|Away|Sleep|Holiday")+";"
         Other = "LevelOffHidden:dHJ1ZQ==;SelectorStyle:MA==" # true is "dHJ1ZQ==", false is "ZmFsc2U=",0 is "MA==", 1 is "MQ=="
         Options = LevelActions+LevelNames+Other
-        Domoticz.Device(Name="Preset", Unit=preset_id, TypeName="Selector Switch", Options=Options).Create()
+        Domoticz.Device(Name="Preset", Unit=hwid_offset["preset_id"], TypeName="Selector Switch", Options=Options).Create()
 
     # Add the rainmeter
-    if ( rain_id not in Devices ):
-        Domoticz.Device(Name="Regen",  Unit=rain_id, Type=85, Subtype=3).Create()
+    if ( hwid_offset["rain_id"] not in Devices ):
+        Domoticz.Device(Name="Regen",  Unit=hwid_offset["rain_id"], TypeName="Rain").Create()
 
     # Add the windmeter
-    if ( wind_id not in Devices ):
-        Domoticz.Device(Name="Wind",  Unit=wind_id, Type=86, Subtype=4).Create()    
+    if ( hwid_offset["wind_id"] not in Devices ):
+        Domoticz.Device(Name="Wind",  Unit=hwid_offset["wind_id"], TypeName="Wind+Temp+Chill").Create()    
     
     if is_number(Parameters["Mode1"]):
         if  10 <= int(Parameters["Mode1"]) <= 60:
@@ -90,36 +88,36 @@ def onConnect(Status, Description):
     return True
 
 def onMessage(Data, Status, Extra):
-    global hw_status, hw_route, hw_preset, term_id, rain_id, wind_id, preset_id
+    global hw_status, hw_route, hwid_offset
 
     if hw_status == "ok":                    
         hw_preset = GetValue(Data["response"], "preset", 0)
         if hw_preset == 0:
-            UpdateDevice(preset_id, 2, "10")
+            UpdateDevice(hwid_offset["preset_id"], 2, "10")
         elif hw_preset == 1:
-            UpdateDevice(preset_id, 2, "20")
+            UpdateDevice(hwid_offset["preset_id"], 2, "20")
         elif hw_preset == 2:
-            UpdateDevice(preset_id, 2, "30")
+            UpdateDevice(hwid_offset["preset_id"], 2, "30")
         elif hw_preset == 3:
-            UpdateDevice(preset_id, 2, "40")
+            UpdateDevice(hwid_offset["preset_id"], 2, "40")
 
         try:
             # Update the wind device
-            wind_0 = float(Data["response"]["windmeters"][0]["ws"] / 3.6) * 10
-            wind_1 = Data["response"]["windmeters"][0]["dir"]
+            wind_0 = float(GetValue(Data["response"]["windmeters"][0], "ws", 0) / 3.6) * 10
+            wind_1 = GetValue(Data["response"]["windmeters"][0], "dir", "N 0")
             wind_1 = wind_1.split(" ", 1)
-            wind_2 = float(Data["response"]["windmeters"][0]["gu"] / 3.6) * 10
-            wind_3 = Data["response"]["windmeters"][0]["wc"]
-            wind_4 = Data["response"]["windmeters"][0]["te"]
-            UpdateDevice(wind_id, 0, str(wind_1[1])+";"+str(wind_1[0])+";"+str(wind_0)+";"+str(wind_2)+";"+str(wind_4)+";"+str(wind_3))
+            wind_2 = float(GetValue(Data["response"]["windmeters"][0], "gu", 0) / 3.6) * 10
+            wind_3 = GetValue(Data["response"]["windmeters"][0], "wc", 0)
+            wind_4 = GetValue(Data["response"]["windmeters"][0], "te", 0)
+            UpdateDevice(hwid_offset["wind_id"], 0, str(wind_1[1])+";"+str(wind_1[0])+";"+str(wind_0)+";"+str(wind_2)+";"+str(wind_4)+";"+str(wind_3))
         except:
             Domoticz.Debug("Error reading wind values")
 
         try:
             # Update the rain device            
-            rain_0 = Data["response"]["rainmeters"][0]["mm"]
-            rain_1 = Data["response"]["rainmeters"][0]["3h"]
-            UpdateDevice(rain_id, 0, str(rain_1) + ";" + str(rain_0))
+            rain_0 = GetValue(Data["response"]["rainmeters"][0], "mm", 0)
+            rain_1 = GetValue(Data["response"]["rainmeters"][0], "3h", 0)
+            UpdateDevice(hwid_offset["rain_id"], 0, str(rain_1) + ";" + str(rain_0))
         except:
             Domoticz.Debug("Error reading rainmeter values")
 
@@ -127,9 +125,9 @@ def onMessage(Data, Status, Extra):
             # Update the thermometes
             x = 0            
             for thermometer in Data["response"]["thermometers"]:
-                tmp_0 = thermometer["te"]
-                tmp_1 = thermometer["hu"]
-                UpdateDevice(term_id+x, 0, str(tmp_0) + ";" + str(tmp_1) + ";" + str(HumStat(tmp_1)))
+                tmp_0 = GetValue(thermometer, "te", 0)
+                tmp_1 = GetValue(thermometer, "hu", 0)
+                UpdateDevice(hwid_offset["term_id"]+x, 0, str(tmp_0) + ";" + str(tmp_1) + ";" + str(HumStat(tmp_1)))
                 x = x + 1
         except:
             Domoticz.Debug("Error reading thermometers values")
@@ -156,55 +154,63 @@ def onMessage(Data, Status, Extra):
                         UpdateDevice(sw_id, 2, str(Switch["dimlevel"]))
         except:
             Domoticz.Debug("Error reading switch values")
-        
+
+
+        # Update the sensors
+        try:
+            for Sensor in Data["response"]["kakusensors"]:
+                sens_id = Sensor["id"] + hwid_offset["sensor_id"]
+                sens_status = str(GetValue(Sensor, "status", "no")).lower()                
+                sens_type = GetValue(Sensor, "type", "Unknown").lower()
+
+                if ( sens_status == "yes" ):                    
+                    UpdateDevice(sens_id, 1, "")
+                else:                    
+                    UpdateDevice(sens_id, 0, "")
+                                                                                    
+        except:
+            Domoticz.Error("Error reading sensor values at Unit " + str(sens_id))        
+                
     return True
 
 def onCommand(Unit, Command, Level, Hue):
-    global hw_status, preset_id
+    global hw_status, hwid_offset
     hw_id = Unit - 1
 
-    if Unit == preset_id:
+    if Unit == hwid_offset["preset_id"]:
         if Level == 10:
-            sendMessage2("preset/0")
+            sendMessage("preset/0")
         elif Level == 20:
-            sendMessage2("preset/1")
+            sendMessage("preset/1")
         elif Level == 30:
-            sendMessage2("preset/2")
+            sendMessage("preset/2")
         elif Level == 40:
-            sendMessage2("preset/3")
+            sendMessage("preset/3")
         return True
     
     if (Level > 0):        
-        sendMessage2("sw/dim/"+str(hw_id)+"/"+str(Level))
+        sendMessage("sw/dim/"+str(hw_id)+"/"+str(Level))
     elif (Command == "On"):
-        sendMessage2("sw/"+str(hw_id)+"/on")
+        sendMessage("sw/"+str(hw_id)+"/on")
     else:
-        sendMessage2("sw/"+str(hw_id)+"/off")
+        sendMessage("sw/"+str(hw_id)+"/off")
 
     if hw_status == "ok":
-        time.sleep(150.0 / 1000.0)
-        sendMessage("get-status")
         return True
     else:
         return False
 
 def onHeartbeat():    
-    sendMessage("get-status")
+    onMessage(sendMessage("get-status"), "", "")
     EnergyMeters()
     return True
 
 def onDisconnect():
-    ClearDevices()
     return
 
 def onStop():
     Domoticz.Log("onStop called")
-    ClearDevices()
     return True
-
-def ClearDevices():
-    # Stop everything and make sure things are synced
-    return
 	
 def HumStat(Humidity):
     if 0 <= Humidity < 30:
@@ -216,42 +222,43 @@ def HumStat(Humidity):
     else:
         return 3
 
-
 def EnergyMeters():
-    global hw_status, en_id
+    global hw_status, hwid_offset, hw_DeviceTypes
     
-    data = sendMessage2("enlist")
+    data = sendMessage("enlist")
     if hw_status == "ok":
         i = 0
-        for Energymeter in data["response"]:
-            if ( en_id+i not in Devices ):
-                Domoticz.Device(Name="Energymeter",  Unit=en_id+i, Type=243, Subtype=29).Create()
+        for Energymeter in data["response"]:            
+            if ( hwid_offset["en_id"]+i not in Devices ):
+                Domoticz.Device(Name="Energymeter",  Unit=hwid_offset["en_id"]+i, TypeName="kWh").Create()
             en_0 = GetValue(Energymeter, "po", "0")
             en_1 = GetValue(Energymeter, "dayTotal", "0")
-            UpdateDevice(en_id+i, 0, str(en_0)+";"+str(en_1 * 1000))
+            UpdateDevice(hwid_offset["en_id"]+i, 0, str(en_0)+";"+str(en_1 * 1000))
             i = i + 1
     return
 
 def Thermometers():
     global hw_status, term_id
     
-    data = sendMessage2("telist")
+    data = sendMessage("telist")
     if hw_status == "ok":
+        Domoticz.Log("No. of thermometers found: " + str(len(data["response"])))
         i = 0        
         for Thermometer in data["response"]:
-            if ( term_id+i not in Devices ):
-                Domoticz.Device(Name=Thermometer["name"],  Unit=term_id+i, Type=82, Subtype=7).Create()
+            if ( hwid_offset["term_id"]+i not in Devices ):
+                Domoticz.Device(Name=Thermometer["name"],  Unit=hwid_offset["term_id"]+i, TypeName="Temp+Hum").Create()
             te_0 = GetValue(Thermometer, "te", "0")
             hu_0 = GetValue(Thermometer, "hu", "0")
-            UpdateDevice(term_id+i, 0, str(te_0)+";"+str(hu_0)+";"+str(HumStat(hu_0)))
+            UpdateDevice(hwid_offset["term_id"]+i, 0, str(te_0)+";"+str(hu_0)+";"+str(HumStat(hu_0)))
             i = i + 1
     return
 
 def Switches():
     global hw_status
     
-    data = sendMessage2("swlist")    
-    if hw_status == "ok":        
+    data = sendMessage("swlist")    
+    if hw_status == "ok":
+        Domoticz.Log("No. of switches found: " + str(len(data["response"])))
         for Switch in data["response"]:
             sw_id = Switch["id"] + 1
             sw_status = GetValue(Switch, "status", "off").lower()            
@@ -260,9 +267,9 @@ def Switches():
             
             if ( sw_id not in Devices ):                
                 if ( sw_type == "switch" ):
-                    Domoticz.Device(Name=sw_name,  Unit=sw_id, Type=16, Subtype=1).Create()
+                    Domoticz.Device(Name=sw_name,  Unit=sw_id, TypeName="Switch").Create()
                 elif ( sw_type == "dimmer" ):
-                    Domoticz.Device(Name=sw_name,  Unit=sw_id, Type=244, Subtype=73, Switchtype=7).Create()                
+                    Domoticz.Device(Name=sw_name,  Unit=sw_id, TypeName="Percentage").Create()                
 
             if ( sw_status == "on" ):
                 sw_status = "2"
@@ -276,11 +283,28 @@ def Switches():
                 UpdateDevice(sw_id, int(sw_status), str(Switch["dimlevel"]))                
     return
 
-def sendMessage(command):      		
-    onMessage(sendMessage2(command), "", "")
+def Sensors(aData):
+    global hw_status, hwid_offset
+
+    if hw_status == "ok":
+        Domoticz.Log("No. of sensors found: " + str(len(aData["response"]["kakusensors"])))
+
+        for Sensor in aData["response"]["kakusensors"]:
+            sens_id = Sensor["id"] + hwid_offset["sensor_id"]            
+            sens_type = GetValue(Sensor, "type", "Unknown").lower()
+            sens_name = GetValue(Sensor, "name", "Unknown")
+            
+            if ( sens_id not in Devices ):
+                if ( sens_type == "doorbell" ):
+                    Domoticz.Device(Name=sens_name,  Unit=sens_id, Type=17, Switchtype=1).Create()
+                elif ( sens_type == "motion" ):
+                    Domoticz.Device(Name=sens_name,  Unit=sens_id, Type=17, Switchtype=8).Create()
+                elif ( sens_type == "contact" ):
+                    Domoticz.Device(Name=sens_name,  Unit=sens_id, Type=17, Switchtype=2).Create()
+                    
     return
 
-def sendMessage2(command):
+def sendMessage(command):
     global hw_status, hw_route
     conn = http.client.HTTPConnection(Parameters["Address"])    
 
@@ -293,7 +317,7 @@ def sendMessage2(command):
             data = json.loads(response.read().decode("utf-8"))
             hw_status = data["status"]
             hw_route = data["request"]["route"]
-            Domoticz.Debug("Homewizard respone: " + str(hw_status))
+##            Domoticz.Debug("Homewizard respone: " + str(hw_status))
         else:
             hw_status = "Unknown"        
     except:
@@ -308,6 +332,7 @@ def sendMessage2(command):
 def HWConnect():
     global hw_version
 
+    Domoticz.Log("Connecting to " + Parameters["Address"])
     conn = http.client.HTTPConnection(Parameters["Address"])
     
     try:		
@@ -323,6 +348,9 @@ def HWConnect():
                 hw_version = data["response"]["version"]
                 hw_route = data["request"]["route"]
                 Domoticz.Debug("Homewizard respone: " + str(hw_status))
+                Domoticz.Debug("Homewizard status: " + str(hw_status))
+                Domoticz.Log("Homewizard version: " + str(hw_version))
+                return sendMessage("get-sensors")
             else:
                 Domoticz.Log("We are not connected to a Homewizard!")
                 return False
@@ -333,27 +361,28 @@ def HWConnect():
         Domoticz.Debug("Failed to communicate to system at ip " + Parameters["Address"])
         hw_status = "Unknown"
         return False
-
-    Domoticz.Debug("Homewizard status: " + str(hw_status))
-    Domoticz.Log("Homewizard version: " + str(hw_version))
+    
     return data
 
 
 def GetValue(arr, sKey, defValue):
-    if str(sKey) in arr:
-        return arr[str(sKey)]
-    else:
+    try:
+        if str(sKey) in arr:
+            return arr[str(sKey)]
+        else:
+            return defValue
+    except:
         return defValue
     
 def UpdateDevice(Unit, nValue, sValue):
-    global rain_id
+    global hwid_offset
 # Make sure that the Domoticz device still exists (they can be deleted) before updating it 
     if (Unit in Devices):
         if (Devices[Unit].nValue != nValue) or (Devices[Unit].sValue != sValue):
             Devices[Unit].Update(nValue, str(sValue))
             Domoticz.Log("Update "+str(nValue)+":'"+str(sValue)+"' ("+Devices[Unit].Name+")")
         # Always update the rainmeter...
-        elif (Unit == rain_id):
+        elif (Unit == hwid_offset["rain_id"]):
             Devices[Unit].Update(nValue, str(sValue))
     return
 
@@ -380,7 +409,5 @@ def is_number(s):
 def stringToBase64(s):
     return base64.b64encode(s.encode('utf-8')).decode("utf-8")
 
-def base64ToString(b):
-    return base64.b64decode(b).decode('utf-8')
 
 0
