@@ -206,7 +206,7 @@ class BasePlugin:
                         sens_status = str(self.GetValue(Sensor, "status", "no")).lower()                                
 
                         if ( sens_status == "yes" ):
-                            if ( self.hw_types[str(sens_id)] == "smoke" ):
+                            if ( self.hw_types[str(sens_id)] == "smoke" ) or ( self.hw_types[str(sens_id)] == "smoke868" ):
                                 self.UpdateDevice(sens_id, 6, "")
                             else:
                                 self.UpdateDevice(sens_id, 1, "")
@@ -345,7 +345,7 @@ class BasePlugin:
                     Domoticz.Device(Name=sens_name,  Unit=sens_id, Type=17, Switchtype=8).Create()
                 elif ( sens_type == "contact" ):
                     Domoticz.Device(Name=sens_name,  Unit=sens_id, Type=17, Switchtype=2).Create()
-                elif ( sens_type == "smoke" ):
+                elif ( sens_type == "smoke" ) or ( sens_type == "smoke868" ):
                     Domoticz.Device(Name=sens_name,  Unit=sens_id, Type=32, Subtype=3).Create()
                     
         return
