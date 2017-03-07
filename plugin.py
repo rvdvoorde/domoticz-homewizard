@@ -1,8 +1,8 @@
 ##           Homewizard Plugin
 ##
 ##           Author:         Raymond Van de Voorde
-##           Version:        2.0.0
-##           Last modified:  05-03-2017
+##           Version:        2.0.2
+##           Last modified:  07-03-2017
 ##
 """
 <plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.0" externallink="https://www.homewizard.nl/">
@@ -25,15 +25,17 @@ import Domoticz
 import json
 import base64
 
-class BasePlugin:    
+class BasePlugin:
+    isConnected = False
     #Homewizard vars    
     hw_version = ""
     hw_route = ""
     hw_types = {}
     sendMessage = ""
+    FullUpdate = 20
     
     #Const
-    Headers = {"Connection": "keep-alive", "Accept": "Content-Type: text/html; charset=UTF-8"}
+    Headers = {"Connection": "close", "Accept": "Content-Type: text/html; charset=UTF-8"}
     hw_port = "80"
     term_id = 111
     en_id= 101
@@ -41,8 +43,8 @@ class BasePlugin:
     wind_id= 202
     preset_id = 121
     sensor_id= 61
-    p1_id= 122
-    gas_id= 123    
+    el_id= 122    
+    UpdateCount = 20
 
     
     def onStart(self):
@@ -62,14 +64,27 @@ class BasePlugin:
 
         
     def onConnect(self, Status, Description):
+        self.isConnected = True
+        
         if (Status == 0):
             if ( len(self.sendMessage) > 0 ):
                 Domoticz.Log("Sending onCommand message: " + self.sendMessage)
                 Domoticz.Send("", "GET", "/"+Parameters["Password"]+"/"+self.sendMessage, self.Headers)
                 self.sendMessage = ""                
-                
-            # Domoticz.Debug("Connected successfully to: "+Parameters["Address"]+":"+self.hw_port)
-            # Domoticz.Debug("Stored route: " + self.hw_route)
+                return True            
+
+            self.FullUpdate = self.FullUpdate - 1
+            if ( self.FullUpdate == 1 ):
+                Domoticz.Debug("Sending get-sensors")
+                Domoticz.Send("", "GET", "/"+Parameters["Password"]+"/get-sensors", self.Headers)                
+                return True
+
+            if ( self.FullUpdate == 1 ):
+                Domoticz.Debug("Sending /el/get/0/readings")
+                Domoticz.Send("", "GET", "/"+Parameters["Password"]+"/el/get/0/readings", self.Headers)
+                self.FullUpdate = self.UpdateCount
+                return True
+            
             
             if ( self.hw_route == "" ):
                 Domoticz.Debug("Sending handshake")
@@ -83,10 +98,10 @@ class BasePlugin:
             else:
                 Domoticz.Debug("Sending get-status")
                 Domoticz.Send("", "GET", "/"+Parameters["Password"]+"/get-status", self.Headers)
-                    
+        
         return True
 
-    def onMessage(self, Data, Status, Extra):
+    def onMessage(self, Data, Status, Extra):        
         try:
             strData = Data.decode("utf-8", "ignore")
             Response = json.loads(strData)
@@ -94,15 +109,15 @@ class BasePlugin:
             Domoticz.Error("Invalid data received!")
             return
         
-        self.hw_status = Response["status"]
-        self.hw_version = Response["version"]
+        self.hw_status = Response["status"]        
         self.hw_route = Response["request"]["route"]        
 
-        Domoticz.Log("Received route: " + self.hw_route)
+        Domoticz.Debug("Received route: " + self.hw_route)
         
         if ( self.hw_status == "ok" ):
             # Did we sent the handshake?
-            if ( self.hw_route == "/handshake" ):                
+            if ( self.hw_route == "/handshake" ):
+                self.hw_version = Response["version"]
                 Domoticz.Log("Homewizard version: " + self.hw_version)                
                 
             elif ( self.hw_route == "/get-sensors" ):
@@ -126,7 +141,7 @@ class BasePlugin:
                 self.EnergyMeters(Response)
                 self.Switches(Response)            
                 self.Thermometers(Response)
-                self.Sensors(Response)
+                self.Sensors(Response)                
                 
             elif ( self.hw_route == "/get-status" ):
                 Domoticz.Debug("Starting handle route /get-status")
@@ -195,6 +210,9 @@ class BasePlugin:
                                 self.UpdateDevice(sw_id, 0, str(Switch["dimlevel"]))
                             else:                    
                                 self.UpdateDevice(sw_id, 2, str(Switch["dimlevel"]))
+                        elif ( self.hw_types[str(sw_id)] == "somfy" ):                            
+                            self.UpdateDevice(sw_id, int(Switch["mode"]), "")
+                            
                 except:
                     Domoticz.Error("Error reading switch values")
 
@@ -214,7 +232,13 @@ class BasePlugin:
                             self.UpdateDevice(sens_id, 0, "")
                                                                                     
                 except:
-                    Domoticz.Error("Error reading sensor values")        
+                    Domoticz.Error("Error reading sensor values")
+
+            elif ( self.hw_route == "/el" ):
+                self.Energylinks(Response)
+                
+            else:
+                Domoticz.Log("Unhandled route received! (" + self.hw_route+")")
                 
         return True
 
@@ -225,24 +249,31 @@ class BasePlugin:
         Domoticz.Log("onCommand called for Unit " + str(Unit) + ": Parameter '" + str(Command) + "', Level: " + str(Level))
         hw_id = Unit - 1
 
-        if Unit == self.preset_id:
-            if Level == 10:
+        # Change the Homewizard preset?
+        if ( Unit == self.preset_id ):
+            if ( Level == 10 ):
                 self.sendMessage = "preset/0"
-            elif Level == 20:
+            elif ( Level == 20 ):
                 self.sendMessage = "preset/1"
-            elif Level == 30:
+            elif ( Level == 30 ):
                 self.sendMessage = "preset/2"
-            elif Level == 40:
+            elif ( Level == 40 ):
                 self.sendMessage = "preset/3"                
             return True
-    
-        if (Level > 0):        
-            self.sendMessage = "sw/dim/"+str(hw_id)+"/"+str(Level)
-        elif (Command == "On"):
-            self.sendMessage = "sw/"+str(hw_id)+"/on"
-        else:
-            self.sendMessage = "sw/"+str(hw_id)+"/off"
+        
+        # Is it a dimmer?
+        if ( self.hw_types[str(hw_id)] == "dimmer" ):
+            if (Level > 0):        
+                self.sendMessage = "sw/dim/"+str(hw_id)+"/"+str(Level)
+            else:
+                self.sendMessage = "sw/"+str(hw_id)+"/off"
+        else:                
+            if (Command == "On"):
+                self.sendMessage = "sw/"+str(hw_id)+"/on"
+            else:
+                self.sendMessage = "sw/"+str(hw_id)+"/off"
 
+        # Start the Homewziard connection and send the command
         self.hwConnect()
     
         return True
@@ -256,6 +287,7 @@ class BasePlugin:
         return
 
     def onDisconnect(self):
+        self.isConnected = False
         return
 
     def onStop(self):
@@ -263,10 +295,15 @@ class BasePlugin:
         return True
 
     def hwConnect(self):
-        Domoticz.Transport(Transport="TCP/IP", Address=Parameters["Address"], Port=self.hw_port)
-        Domoticz.Protocol("HTTP")        
-        Domoticz.Connect()
-        return
+        if ( self.isConnected == False ):
+            Domoticz.Transport(Transport="TCP/IP", Address=Parameters["Address"], Port=self.hw_port)
+            Domoticz.Protocol("HTTP")        
+            Domoticz.Connect()
+            return True
+        else:
+            Domoticz.Error("Already connected at hwConnect!")
+            self.onConnect(200, "")
+            return False
 
     def EnergyMeters(self, strData):                
         i = 0
@@ -295,7 +332,9 @@ class BasePlugin:
                 elif ( sw_type == "virtual" ):
                     Domoticz.Device(Name=sw_name,  Unit=sw_id, TypeName="Switch").Create()
                 elif ( sw_type == "dimmer" ):
-                    Domoticz.Device(Name=sw_name,  Unit=sw_id, Type=244, Subtype=73, Switchtype=7).Create()                
+                    Domoticz.Device(Name=sw_name,  Unit=sw_id, Type=244, Subtype=73, Switchtype=7).Create()
+                elif ( sw_type == "somfy" ):
+                    Domoticz.Device(Name=sw_name,  Unit=sw_id, TypeName="Switch").Create()
 
             if ( sw_status == "on" ):                
                 if ( sw_type == "dimmer" ):
@@ -311,7 +350,10 @@ class BasePlugin:
             elif ( sw_type == "virtual" ):
                 self.UpdateDevice(sw_id, int(sw_status), "")
             elif ( sw_type == "dimmer" ):                
-                self.UpdateDevice(sw_id, int(sw_status), str(Switch["dimlevel"]))                
+                self.UpdateDevice(sw_id, int(sw_status), str(Switch["dimlevel"]))
+            elif ( sw_type == "somfy" ):
+                self.UpdateDevice(sw_id, int(Switch["mode"]), "")
+                
         return
 
     def Thermometers(self, strData):        
@@ -346,20 +388,40 @@ class BasePlugin:
                 elif ( sens_type == "contact" ):
                     Domoticz.Device(Name=sens_name,  Unit=sens_id, Type=17, Switchtype=2).Create()
                 elif ( sens_type == "smoke" ) or ( sens_type == "smoke868" ):
-                    Domoticz.Device(Name=sens_name,  Unit=sens_id, Type=32, Subtype=3).Create()
+                    Domoticz.Device(Name=sens_name,  Unit=sens_id, Type=32, Subtype=3).Create()                
                     
         return
 
+    def Energylinks(self, strData):
+        el_no = len(self.GetValue(strData, "response",{}))
+        
+        Domoticz.Log("No. of Energylinks found: " + str(el_no))
+
+        if ( el_no == 0 ):
+            return
+        
+        el_low_in = strData["response"][0]["consumed"]
+        el_low_out = strData["response"][0]["produced"]
+    
+        el_high_in = strData["response"][1]["consumed"]
+        el_high_out = strData["response"][1]["produced"]
+
+        gas_in = strData["response"][2]["consumed"]
+
+        # if ( self.el_id not in Devices ):
+            #TODO: Create the device
+
+        Data = str(el_low_in)+";"+str(el_high_in)+";"+str(el_low_out)+";"+str(el_high_out)+";"+"0;0"
+        self.UpdateDevice( self.el_id, 0, )
+        return 
+        
 
     def UpdateDevice(self, Unit, nValue, sValue):    
         # Make sure that the Domoticz device still exists (they can be deleted) before updating it 
         if (Unit in Devices):
             if (Devices[Unit].nValue != nValue) or (Devices[Unit].sValue != sValue):
                 Devices[Unit].Update(nValue, str(sValue))
-                Domoticz.Log("Update "+str(nValue)+":'"+str(sValue)+"' ("+Devices[Unit].Name+")")
-            # Always update the rainmeter...
-            elif (Unit == self.rain_id):
-                Devices[Unit].Update(nValue, str(sValue))
+                Domoticz.Log("Update "+str(nValue)+":'"+str(sValue)+"' ("+Devices[Unit].Name+")")            
         return
 
 
