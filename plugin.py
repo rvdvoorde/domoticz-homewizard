@@ -1,11 +1,11 @@
 ##           Homewizard Plugin
 ##
 ##           Author:         Raymond Van de Voorde
-##           Version:        2.0.2
-##           Last modified:  07-03-2017
+##           Version:        2.0.3
+##           Last modified:  08-03-2017
 ##
 """
-<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.2" externallink="https://www.homewizard.nl/">
+<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.3" externallink="https://www.homewizard.nl/">
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1" />
 	<param field="Password" label="Password" width="200px" required="true" default="1234" />
@@ -70,13 +70,13 @@ class BasePlugin:
             if ( len(self.sendMessage) > 0 ):
                 Domoticz.Log("Sending onCommand message: " + self.sendMessage)
                 Domoticz.Send("", "GET", "/"+Parameters["Password"]+"/"+self.sendMessage, self.Headers)
-                self.sendMessage = ""                
+                self.sendMessage = ""
                 return True            
 
             self.FullUpdate = self.FullUpdate - 1
             if ( self.FullUpdate == 1 ):
                 Domoticz.Debug("Sending get-sensors")
-                Domoticz.Send("", "GET", "/"+Parameters["Password"]+"/get-sensors", self.Headers)                
+                Domoticz.Send("", "GET", "/"+Parameters["Password"]+"/get-sensors", self.Headers)
                 return True
 
             if ( self.FullUpdate == 1 ):
@@ -98,7 +98,7 @@ class BasePlugin:
             else:
                 Domoticz.Debug("Sending get-status")
                 Domoticz.Send("", "GET", "/"+Parameters["Password"]+"/get-status", self.Headers)
-        
+
         return True
 
     def onMessage(self, Data, Status, Extra):        
@@ -148,25 +148,25 @@ class BasePlugin:
                 
                 self.hw_preset = self.GetValue(Response["response"], "preset", 0)
                 if self.hw_preset == 0:
-                    self.UpdateDevice(self.preset_id, 2, "10")
+                    UpdateDevice(self.preset_id, 2, "10")
                 elif self.hw_preset == 1:
-                    self.UpdateDevice(self.preset_id, 2, "20")
+                    UpdateDevice(self.preset_id, 2, "20")
                 elif self.hw_preset == 2:
-                    self.UpdateDevice(self.preset_id, 2, "30")
+                    UpdateDevice(self.preset_id, 2, "30")
                 elif self.hw_preset == 3:
-                    self.UpdateDevice(self.preset_id, 2, "40")
+                    UpdateDevice(self.preset_id, 2, "40")
 
-                try:
-                    # Update the wind device
-                    wind_0 = float(self.GetValue(Response["response"]["windmeters"][0], "ws", 0) / 3.6) * 10
-                    wind_1 = self.GetValue(Response["response"]["windmeters"][0], "dir", "N 0")
-                    wind_1 = wind_1.split(" ", 1)
-                    wind_2 = float(self.GetValue(Response["response"]["windmeters"][0], "gu", 0) / 3.6) * 10
-                    wind_3 = self.GetValue(Response["response"]["windmeters"][0], "wc", 0)
-                    wind_4 = self.GetValue(Response["response"]["windmeters"][0], "te", 0)
-                    self.UpdateDevice(self.wind_id, 0, str(wind_1[1])+";"+str(wind_1[0])+";"+str(wind_0)+";"+str(wind_2)+";"+str(wind_4)+";"+str(wind_3))
-                except:
-                    Domoticz.Error("Error reading wind values")
+##                try:
+##                    # Update the wind device
+##                    wind_0 = round(float(self.GetValue(Response["response"]["windmeters"][0], "ws", 0) / 3.6) * 10, 2)
+##                    wind_1 = self.GetValue(Response["response"]["windmeters"][0], "dir", "N 0")
+##                    wind_1 = wind_1.split(" ", 1)
+##                    wind_2 = round(float(self.GetValue(Response["response"]["windmeters"][0], "gu", 0) / 3.6) * 10, 2)
+##                    wind_3 = self.GetValue(Response["response"]["windmeters"][0], "wc", 0)
+##                    wind_4 = self.GetValue(Response["response"]["windmeters"][0], "te", 0)
+##                    UpdateDevice(self.wind_id, 0, str(wind_1[1])+";"+str(wind_1[0])+";"+str(wind_0)+";"+str(wind_2)+";"+str(wind_4)+";"+str(wind_3))
+##                except:
+##                    Domoticz.Error("Error reading wind values")
 
                 try:
                     # Update the rain device            
@@ -182,7 +182,7 @@ class BasePlugin:
                     for thermometer in self.GetValue(Response["response"], "thermometers", {}):
                         tmp_0 = self.GetValue(thermometer, "te", 0)
                         tmp_1 = self.GetValue(thermometer, "hu", 0)
-                        self.UpdateDevice(self.term_id+x, 0, str(tmp_0) + ";" + str(tmp_1) + ";" + str(self.HumStat(tmp_1)))
+                        UpdateDevice(self.term_id+x, 0, str(tmp_0) + ";" + str(tmp_1) + ";" + str(self.HumStat(tmp_1)))
                         x = x + 1
                 except:
                     Domoticz.Error("Error reading thermometers values")
@@ -204,14 +204,14 @@ class BasePlugin:
                 
                         # Update the switch/dimmer status
                         if ( self.hw_types[str(sw_id)] == "switch" ) or ( self.hw_types[str(sw_id)] == "virtual" ):
-                            self.UpdateDevice(sw_id, int(sw_status), "")
+                            UpdateDevice(sw_id, int(sw_status), "")
                         elif ( self.hw_types[str(sw_id)] == "dimmer" ):
                             if ( sw_status == "0" ):
-                                self.UpdateDevice(sw_id, 0, str(Switch["dimlevel"]))
+                                UpdateDevice(sw_id, 0, str(Switch["dimlevel"]))
                             else:                    
-                                self.UpdateDevice(sw_id, 2, str(Switch["dimlevel"]))
+                                UpdateDevice(sw_id, 2, str(Switch["dimlevel"]))
                         elif ( self.hw_types[str(sw_id)] == "somfy" ):                            
-                            self.UpdateDevice(sw_id, int(Switch["mode"]), "")
+                            UpdateDevice(sw_id, int(Switch["mode"]), "")
                             
                 except:
                     Domoticz.Error("Error reading switch values")
@@ -225,15 +225,23 @@ class BasePlugin:
 
                         if ( sens_status == "yes" ):
                             if ( self.hw_types[str(sens_id)] == "smoke" ) or ( self.hw_types[str(sens_id)] == "smoke868" ):
-                                self.UpdateDevice(sens_id, 6, "")
+                                UpdateDevice(sens_id, 6, "")
                             else:
-                                self.UpdateDevice(sens_id, 1, "")
+                                UpdateDevice(sens_id, 1, "")
                         else:                    
-                            self.UpdateDevice(sens_id, 0, "")
+                            UpdateDevice(sens_id, 0, "")
                                                                                     
                 except:
                     Domoticz.Error("Error reading sensor values")
 
+
+                # Update energymeters (Wattcher)
+                en = Devices[self.en_id].sValue.split(";")
+                en_0 = self.GetValue(Response["response"]["energymeters"][0], "po", "0")
+                UpdateDevice(self.en_id, 0, str(en_0)+";"+str(en[1]))
+                
+                Domoticz.Debug("Route /get-status handled")
+                
             elif ( self.hw_route == "/el" ):
                 self.Energylinks(Response)
                 
@@ -273,7 +281,7 @@ class BasePlugin:
             else:
                 self.sendMessage = "sw/"+str(hw_id)+"/off"
 
-        # Start the Homewziard connection and send the command
+        # Start the Homewizard connection and send the command
         self.hwConnect()
     
         return True
@@ -301,7 +309,7 @@ class BasePlugin:
             Domoticz.Connect()
             return True
         else:
-            Domoticz.Error("Already connected at hwConnect!")
+            Domoticz.Debug("Already connected at hwConnect")
             self.onConnect(200, "")
             return False
 
@@ -312,7 +320,7 @@ class BasePlugin:
                 Domoticz.Device(Name="Energymeter",  Unit=self.en_id+i, TypeName="kWh").Create()
             en_0 = self.GetValue(Energymeter, "po", "0")
             en_1 = self.GetValue(Energymeter, "dayTotal", "0")
-            self.UpdateDevice(self.en_id+i, 0, str(en_0)+";"+str(en_1 * 1000))
+            UpdateDevice(self.en_id+i, 0, str(en_0)+";"+str(en_1 * 1000))
             i = i + 1
         return
 
@@ -346,13 +354,13 @@ class BasePlugin:
                 
             # Update the switch status
             if ( sw_type == "switch" ):
-                self.UpdateDevice(sw_id, int(sw_status), "")
+                UpdateDevice(sw_id, int(sw_status), "")
             elif ( sw_type == "virtual" ):
-                self.UpdateDevice(sw_id, int(sw_status), "")
+                UpdateDevice(sw_id, int(sw_status), "")
             elif ( sw_type == "dimmer" ):                
-                self.UpdateDevice(sw_id, int(sw_status), str(Switch["dimlevel"]))
+                UpdateDevice(sw_id, int(sw_status), str(Switch["dimlevel"]))
             elif ( sw_type == "somfy" ):
-                self.UpdateDevice(sw_id, int(Switch["mode"]), "")
+                UpdateDevice(sw_id, int(Switch["mode"]), "")
                 
         return
 
@@ -365,7 +373,7 @@ class BasePlugin:
                 Domoticz.Device(Name=Thermometer["name"],  Unit=self.term_id+i, TypeName="Temp+Hum").Create()
             te_0 = self.GetValue(Thermometer, "te", "0")
             hu_0 = self.GetValue(Thermometer, "hu", "0")
-            self.UpdateDevice(self.term_id+i, 0, str(te_0)+";"+str(hu_0)+";"+str(self.HumStat(hu_0)))
+            UpdateDevice(self.term_id+i, 0, str(te_0)+";"+str(hu_0)+";"+str(self.HumStat(hu_0)))
             i = i + 1
         return
 
@@ -412,19 +420,9 @@ class BasePlugin:
             #TODO: Create the device
 
         Data = str(el_low_in)+";"+str(el_high_in)+";"+str(el_low_out)+";"+str(el_high_out)+";"+"0;0"
-        self.UpdateDevice( self.el_id, 0, )
+        UpdateDevice( self.el_id, 0, )
         return 
         
-
-    def UpdateDevice(self, Unit, nValue, sValue):    
-        # Make sure that the Domoticz device still exists (they can be deleted) before updating it 
-        if (Unit in Devices):
-            if (Devices[Unit].nValue != nValue) or (Devices[Unit].sValue != sValue):
-                Devices[Unit].Update(nValue, str(sValue))
-                Domoticz.Log("Update "+str(nValue)+":'"+str(sValue)+"' ("+Devices[Unit].Name+")")            
-        return
-
-
     def is_number(self, s):
         try:
             float(s)
@@ -516,6 +514,7 @@ def UpdateDevice(Unit, nValue, sValue):
             Devices[Unit].Update(nValue=nValue, sValue=str(sValue))
             Domoticz.Log("Update "+str(nValue)+":'"+str(sValue)+"' ("+Devices[Unit].Name+")")
     return
+
 
 
 
