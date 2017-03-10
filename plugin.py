@@ -1,11 +1,11 @@
 ##           Homewizard Plugin
 ##
 ##           Author:         Raymond Van de Voorde
-##           Version:        2.0.5
+##           Version:        2.0.6
 ##           Last modified:  10-03-2017
 ##
 """
-<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.5" externallink="https://www.homewizard.nl/">
+<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.6" externallink="https://www.homewizard.nl/">
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1" />
 	<param field="Password" label="Password" width="200px" required="true" default="1234" />
@@ -58,13 +58,15 @@ class BasePlugin:
         DumpConfigToLog()        
         
         if  10 <= int(Parameters["Mode1"]) <= 60:
-            Domoticz.Log("Update interval set to " + Parameters["Mode1"])
-            Domoticz.Log("Full update after " + Parameters["Mode2"] + " polls")
+            Domoticz.Log("Update interval set to " + Parameters["Mode1"])            
             Domoticz.Heartbeat(int(Parameters["Mode1"]))
         else:
             Domoticz.Heartbeat(20)
 
+        Domoticz.Log("Full update after " + Parameters["Mode2"] + " polls")
+
         self.hwConnect("get-sensors")
+        
         return True
         
     def onConnect(self, Status, Description):
@@ -283,7 +285,7 @@ class BasePlugin:
                 self.sendMessage = "sw/"+str(hw_id)+"/off"
 
         # Start the Homewizard connection and send the command
-        self.hwConnect()
+        self.hwConnect(self.sendMessage)
     
         return True
 
@@ -298,7 +300,7 @@ class BasePlugin:
             self.hwConnect("get-sensors")
             return True
 
-        if ( self.FullUpdate == 1 ):
+        if ( self.FullUpdate < 1 ):
             Domoticz.Debug("Sending /el/get/0/readings")
             self.hwConnect("el/get/0/readingss")
             self.FullUpdate = int(Parameters["Mode2"])
@@ -323,8 +325,11 @@ class BasePlugin:
 
             conn = http.client.HTTPConnection(Parameters["Address"])
             
-            try:		
-                conn.request("GET", "/" + Parameters["Password"] + "/" + command)
+            try:
+                if ( command == "handshake" ):
+                    conn.request("GET", "/" + command)
+                else:
+                    conn.request("GET", "/" + Parameters["Password"] + "/" + command)
                 response = conn.getresponse()
                 conn.close()
     
@@ -540,7 +545,6 @@ def UpdateDevice(Unit, nValue, sValue):
             Devices[Unit].Update(nValue=nValue, sValue=str(sValue))
             Domoticz.Log("Update "+str(nValue)+":'"+str(sValue)+"' ("+Devices[Unit].Name+")")
     return
-
 
 
 
