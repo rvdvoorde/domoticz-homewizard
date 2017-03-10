@@ -1,15 +1,16 @@
 ##           Homewizard Plugin
 ##
 ##           Author:         Raymond Van de Voorde
-##           Version:        2.0.3
-##           Last modified:  08-03-2017
+##           Version:        2.0.5
+##           Last modified:  10-03-2017
 ##
 """
-<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.3" externallink="https://www.homewizard.nl/">
+<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.5" externallink="https://www.homewizard.nl/">
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1" />
 	<param field="Password" label="Password" width="200px" required="true" default="1234" />
         <param field="Mode1" label="Poll interval" width="100px" required="true" default=20 />
+        <param field="Mode2" label="Full update after x polls" width="100px" required="true" default=20 />
         
         <param field="Mode6" label="Debug" width="75px">
             <options>
@@ -24,6 +25,7 @@
 import Domoticz
 import json
 import base64
+import http.client
 
 class BasePlugin:
     isConnected = False
@@ -35,7 +37,7 @@ class BasePlugin:
     FullUpdate = 20
     
     #Const
-    Headers = {"Connection": "close", "Accept": "Content-Type: text/html; charset=UTF-8"}
+    Headers = {"Connection": "keep-alive", "Accept": "Content-Type: text/html; charset=UTF-8"}
     hw_port = "80"
     term_id = 111
     en_id= 101
@@ -50,18 +52,20 @@ class BasePlugin:
     def onStart(self):
         if Parameters["Mode6"] == "Debug":
             Domoticz.Debugging(1)
+
+        self.FullUpdate = int(Parameters["Mode2"])
         
-        DumpConfigToLog()
-        self.hwConnect()
+        DumpConfigToLog()        
         
         if  10 <= int(Parameters["Mode1"]) <= 60:
             Domoticz.Log("Update interval set to " + Parameters["Mode1"])
+            Domoticz.Log("Full update after " + Parameters["Mode2"] + " polls")
             Domoticz.Heartbeat(int(Parameters["Mode1"]))
         else:
             Domoticz.Heartbeat(20)
 
-        Domoticz.Connect()
-
+        self.hwConnect("get-sensors")
+        return True
         
     def onConnect(self, Status, Description):
         self.isConnected = True
@@ -142,6 +146,8 @@ class BasePlugin:
                 self.Switches(Response)            
                 self.Thermometers(Response)
                 self.Sensors(Response)                
+
+                Domoticz.Debug("Ended handling get-sensors")
                 
             elif ( self.hw_route == "/get-status" ):
                 Domoticz.Debug("Starting handle route /get-status")
@@ -156,17 +162,17 @@ class BasePlugin:
                 elif self.hw_preset == 3:
                     UpdateDevice(self.preset_id, 2, "40")
 
-##                try:
-##                    # Update the wind device
-##                    wind_0 = round(float(self.GetValue(Response["response"]["windmeters"][0], "ws", 0) / 3.6) * 10, 2)
-##                    wind_1 = self.GetValue(Response["response"]["windmeters"][0], "dir", "N 0")
-##                    wind_1 = wind_1.split(" ", 1)
-##                    wind_2 = round(float(self.GetValue(Response["response"]["windmeters"][0], "gu", 0) / 3.6) * 10, 2)
-##                    wind_3 = self.GetValue(Response["response"]["windmeters"][0], "wc", 0)
-##                    wind_4 = self.GetValue(Response["response"]["windmeters"][0], "te", 0)
-##                    UpdateDevice(self.wind_id, 0, str(wind_1[1])+";"+str(wind_1[0])+";"+str(wind_0)+";"+str(wind_2)+";"+str(wind_4)+";"+str(wind_3))
-##                except:
-##                    Domoticz.Error("Error reading wind values")
+                try:
+                    # Update the wind device
+                    wind_0 = round(float(self.GetValue(Response["response"]["windmeters"][0], "ws", 0) / 3.6) * 10, 2)
+                    wind_1 = self.GetValue(Response["response"]["windmeters"][0], "dir", "N 0")
+                    wind_1 = wind_1.split(" ", 1)
+                    wind_2 = round(float(self.GetValue(Response["response"]["windmeters"][0], "gu", 0) / 3.6) * 10, 2)
+                    wind_3 = self.GetValue(Response["response"]["windmeters"][0], "wc", 0)
+                    wind_4 = self.GetValue(Response["response"]["windmeters"][0], "te", 0)
+                    UpdateDevice(self.wind_id, 0, str(wind_1[1])+";"+str(wind_1[0])+";"+str(wind_0)+";"+str(wind_2)+";"+str(wind_4)+";"+str(wind_3))
+                except:
+                    Domoticz.Error("Error reading wind values")
 
                 try:
                     # Update the rain device            
@@ -175,7 +181,7 @@ class BasePlugin:
                     UpdateDevice(self.rain_id, 0, str(rain_1) + ";" + str(rain_0))
                 except:
                     Domoticz.Error("Error reading rainmeter values")
-
+                
                 try:
                     #Update the thermometes
                     x = 0            
@@ -185,7 +191,7 @@ class BasePlugin:
                         UpdateDevice(self.term_id+x, 0, str(tmp_0) + ";" + str(tmp_1) + ";" + str(self.HumStat(tmp_1)))
                         x = x + 1
                 except:
-                    Domoticz.Error("Error reading thermometers values")
+                    Domoticz.Error("Error reading thermometers values")                
                 
                 try:
                     # Update the switches
@@ -195,13 +201,9 @@ class BasePlugin:
 
                         if ( sw_status == "on" ):
                             sw_status = "1"
-                        elif ( sw_status == "off" ):
+                        else:
                             sw_status = "0"
 
-##                        if ( str(sw_id) not in self.hw_types ):
-##                            Domoticz.Log("Switch added/changed, please restart domoticz...")
-##                            continue
-                
                         # Update the switch/dimmer status
                         if ( self.hw_types[str(sw_id)] == "switch" ) or ( self.hw_types[str(sw_id)] == "virtual" ):
                             UpdateDevice(sw_id, int(sw_status), "")
@@ -234,13 +236,12 @@ class BasePlugin:
                 except:
                     Domoticz.Error("Error reading sensor values")
 
-
                 # Update energymeters (Wattcher)
                 en = Devices[self.en_id].sValue.split(";")
                 en_0 = self.GetValue(Response["response"]["energymeters"][0], "po", "0")
                 UpdateDevice(self.en_id, 0, str(en_0)+";"+str(en[1]))
                 
-                Domoticz.Debug("Route /get-status handled")
+                Domoticz.Debug("Ended handle route /get-status")
                 
             elif ( self.hw_route == "/el" ):
                 self.Energylinks(Response)
@@ -290,8 +291,20 @@ class BasePlugin:
         Domoticz.Log("Notification: " + str(Data))
         return
 
-    def onHeartbeat(self):                
-        self.hwConnect()
+    def onHeartbeat(self):
+        self.FullUpdate = self.FullUpdate - 1
+        if ( self.FullUpdate == 1 ):
+            Domoticz.Debug("Sending get-sensors")
+            self.hwConnect("get-sensors")
+            return True
+
+        if ( self.FullUpdate == 1 ):
+            Domoticz.Debug("Sending /el/get/0/readings")
+            self.hwConnect("el/get/0/readingss")
+            self.FullUpdate = int(Parameters["Mode2"])
+            return True
+            
+        self.hwConnect("get-status")
         return
 
     def onDisconnect(self):
@@ -302,15 +315,28 @@ class BasePlugin:
         Domoticz.Log("onStop called")
         return True
 
-    def hwConnect(self):
+    def hwConnect(self, command):
         if ( self.isConnected == False ):
-            Domoticz.Transport(Transport="TCP/IP", Address=Parameters["Address"], Port=self.hw_port)
-            Domoticz.Protocol("HTTP")        
-            Domoticz.Connect()
+##            Domoticz.Transport(Transport="TCP/IP", Address=Parameters["Address"], Port=self.hw_port)
+##            Domoticz.Protocol("HTTP")        
+##            Domoticz.Connect()
+
+            conn = http.client.HTTPConnection(Parameters["Address"])
+            
+            try:		
+                conn.request("GET", "/" + Parameters["Password"] + "/" + command)
+                response = conn.getresponse()
+                conn.close()
+    
+                if response.status == 200:            
+                    self.onMessage(response.read(), "200", "")
+            except:
+                Domoticz.Debug("Failed to communicate to system at ip " + Parameters["Address"])
+                return False
+
             return True
         else:
             Domoticz.Debug("Already connected at hwConnect")
-            self.onConnect(200, "")
             return False
 
     def EnergyMeters(self, strData):                
@@ -514,6 +540,7 @@ def UpdateDevice(Unit, nValue, sValue):
             Devices[Unit].Update(nValue=nValue, sValue=str(sValue))
             Domoticz.Log("Update "+str(nValue)+":'"+str(sValue)+"' ("+Devices[Unit].Name+")")
     return
+
 
 
 
