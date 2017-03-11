@@ -1,11 +1,11 @@
 ##           Homewizard Plugin
 ##
 ##           Author:         Raymond Van de Voorde
-##           Version:        2.0.6
-##           Last modified:  10-03-2017
+##           Version:        2.0.7
+##           Last modified:  11-03-2017
 ##
 """
-<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.6" externallink="https://www.homewizard.nl/">
+<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.7" externallink="https://www.homewizard.nl/">
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1" />
 	<param field="Password" label="Password" width="200px" required="true" default="1234" />
@@ -323,7 +323,7 @@ class BasePlugin:
 ##            Domoticz.Protocol("HTTP")        
 ##            Domoticz.Connect()
 
-            conn = http.client.HTTPConnection(Parameters["Address"])
+            conn = http.client.HTTPConnection(Parameters["Address"], timeout=2)
             
             try:
                 if ( command == "handshake" ):
@@ -545,7 +545,3 @@ def UpdateDevice(Unit, nValue, sValue):
             Devices[Unit].Update(nValue=nValue, sValue=str(sValue))
             Domoticz.Log("Update "+str(nValue)+":'"+str(sValue)+"' ("+Devices[Unit].Name+")")
     return
-
-
-
-
