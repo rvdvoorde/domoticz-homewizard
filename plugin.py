@@ -1,11 +1,11 @@
 ##           Homewizard Plugin
 ##
 ##           Author:         Raymond Van de Voorde
-##           Version:        2.0.7
-##           Last modified:  11-03-2017
+##           Version:        2.0.9
+##           Last modified:  14-03-2017
 ##
 """
-<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.7" externallink="https://www.homewizard.nl/">
+<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.9" externallink="https://www.homewizard.nl/">
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1" />
 	<param field="Password" label="Password" width="200px" required="true" default="1234" />
@@ -29,6 +29,8 @@ import http.client
 
 class BasePlugin:
     isConnected = False
+    LastUnit = 0
+    
     #Homewizard vars    
     hw_version = ""
     hw_route = ""
@@ -135,14 +137,6 @@ class BasePlugin:
                     Other = "LevelOffHidden:dHJ1ZQ==;SelectorStyle:MA==" # true is "dHJ1ZQ==", false is "ZmFsc2U=",0 is "MA==", 1 is "MQ=="
                     Options = LevelActions+LevelNames+Other
                     Domoticz.Device(Name="Preset", Unit=self.preset_id, TypeName="Selector Switch", Options=Options).Create()
-
-                # Add the rainmeter
-                if ( self.rain_id not in Devices ):
-                    Domoticz.Device(Name="Regen",  Unit=self.rain_id, TypeName="Rain").Create()
-
-                # Add the windmeter
-                if ( self.wind_id not in Devices ):
-                    Domoticz.Device(Name="Wind",  Unit=self.wind_id, TypeName="Wind+Temp+Chill").Create()
         
                 self.EnergyMeters(Response)
                 self.Switches(Response)            
@@ -165,22 +159,30 @@ class BasePlugin:
                     UpdateDevice(self.preset_id, 2, "40")
 
                 try:
-                    # Update the wind device
-                    wind_0 = round(float(self.GetValue(Response["response"]["windmeters"][0], "ws", 0) / 3.6) * 10, 2)
-                    wind_1 = self.GetValue(Response["response"]["windmeters"][0], "dir", "N 0")
-                    wind_1 = wind_1.split(" ", 1)
-                    wind_2 = round(float(self.GetValue(Response["response"]["windmeters"][0], "gu", 0) / 3.6) * 10, 2)
-                    wind_3 = self.GetValue(Response["response"]["windmeters"][0], "wc", 0)
-                    wind_4 = self.GetValue(Response["response"]["windmeters"][0], "te", 0)
-                    UpdateDevice(self.wind_id, 0, str(wind_1[1])+";"+str(wind_1[0])+";"+str(wind_0)+";"+str(wind_2)+";"+str(wind_4)+";"+str(wind_3))
+                    # Update the wind device, create it if not there
+                    if ( len(Response["response"]["windmeters"]) == 1 ):
+                        if ( self.rain_id not in Devices ):
+                            Domoticz.Device(Name="Regen",  Unit=self.rain_id, TypeName="Rain").Create()
+
+                        wind_0 = round(float(self.GetValue(Response["response"]["windmeters"][0], "ws", 0) / 3.6) * 10, 2)
+                        wind_1 = self.GetValue(Response["response"]["windmeters"][0], "dir", "N 0")
+                        wind_1 = wind_1.split(" ", 1)
+                        wind_2 = round(float(self.GetValue(Response["response"]["windmeters"][0], "gu", 0) / 3.6) * 10, 2)
+                        wind_3 = self.GetValue(Response["response"]["windmeters"][0], "wc", 0)
+                        wind_4 = self.GetValue(Response["response"]["windmeters"][0], "te", 0)
+                        UpdateDevice(self.wind_id, 0, str(wind_1[1])+";"+str(wind_1[0])+";"+str(wind_0)+";"+str(wind_2)+";"+str(wind_4)+";"+str(wind_3))
                 except:
                     Domoticz.Error("Error reading wind values")
 
                 try:
-                    # Update the rain device            
-                    rain_0 = self.GetValue(Response["response"]["rainmeters"][0], "mm", 0)
-                    rain_1 = self.GetValue(Response["response"]["rainmeters"][0], "3h", 0)
-                    UpdateDevice(self.rain_id, 0, str(rain_1) + ";" + str(rain_0))
+                    # Update the rain device, create it if not there
+                    if ( len(Response["response"]["rainmeters"]) == 1 ):
+                        if ( self.wind_id not in Devices ):
+                            Domoticz.Device(Name="Wind",  Unit=self.wind_id, TypeName="Wind+Temp+Chill").Create()
+                
+                        rain_0 = self.GetValue(Response["response"]["rainmeters"][0], "mm", 0)
+                        rain_1 = self.GetValue(Response["response"]["rainmeters"][0], "3h", 0)
+                        UpdateDevice(self.rain_id, 0, str(rain_1) + ";" + str(rain_0))
                 except:
                     Domoticz.Error("Error reading rainmeter values")
                 
@@ -214,7 +216,7 @@ class BasePlugin:
                                 UpdateDevice(sw_id, 0, str(Switch["dimlevel"]))
                             else:                    
                                 UpdateDevice(sw_id, 2, str(Switch["dimlevel"]))
-                        elif ( self.hw_types[str(sw_id)] == "somfy" ):                            
+                        elif ( self.hw_types[str(sw_id)] == "somfy" ) or ( self.hw_types[str(sw_id)] == "asun" ):                            
                             UpdateDevice(sw_id, int(Switch["mode"]), "")
                             
                 except:
@@ -247,9 +249,21 @@ class BasePlugin:
                 
             elif ( self.hw_route == "/el" ):
                 self.Energylinks(Response)
+
+            elif ( self.hw_route == "/sw" ):                
+                if ( self.LastCommand == "Set Level" ):
+                    UpdateDevice(self.LastUnit, 2, str(self.LastLevel))                
+                elif ( self.LastCommand == 'On' and self.hw_types[str(self.LastUnit-1)] == "dimmer"):
+                    UpdateDevice(self.LastUnit, 2, "")
+                elif ( self.LastCommand == 'On' and self.hw_types[str(self.LastUnit-1)] == "switch"):
+                    UpdateDevice(self.LastUnit, 1, "")
+                else:
+                    UpdateDevice(self.LastUnit, 0, "")                                    
+                    
+                Domoticz.Debug("Handled the /sw route")
                 
             else:
-                Domoticz.Log("Unhandled route received! (" + self.hw_route+")")
+                Domoticz.Debug("Unhandled route received! (" + self.hw_route+")")
                 
         return True
 
@@ -257,6 +271,9 @@ class BasePlugin:
                 
             
     def onCommand(self, Unit, Command, Level, Hue):
+        self.LastUnit = Unit
+        self.LastCommand = Command
+        self.LastLevel = Level
         Domoticz.Log("onCommand called for Unit " + str(Unit) + ": Parameter '" + str(Command) + "', Level: " + str(Level))
         hw_id = Unit - 1
 
@@ -273,11 +290,9 @@ class BasePlugin:
             return True
         
         # Is it a dimmer?
-        if ( self.hw_types[str(hw_id)] == "dimmer" ):
-            if (Level > 0):        
-                self.sendMessage = "sw/dim/"+str(hw_id)+"/"+str(Level)
-            else:
-                self.sendMessage = "sw/"+str(hw_id)+"/off"
+        Domoticz.Debug("Detected hardware: "+self.hw_types[str(Unit)])        
+        if ( str(Command) == "Set Level" ):
+            self.sendMessage = "sw/dim/"+str(hw_id)+"/"+str(Level)            
         else:                
             if (Command == "On"):
                 self.sendMessage = "sw/"+str(hw_id)+"/on"
@@ -372,7 +387,7 @@ class BasePlugin:
                     Domoticz.Device(Name=sw_name,  Unit=sw_id, TypeName="Switch").Create()
                 elif ( sw_type == "dimmer" ):
                     Domoticz.Device(Name=sw_name,  Unit=sw_id, Type=244, Subtype=73, Switchtype=7).Create()
-                elif ( sw_type == "somfy" ):
+                elif ( sw_type == "somfy" ) or ( sw_type == "asun" ):
                     Domoticz.Device(Name=sw_name,  Unit=sw_id, TypeName="Switch").Create()
 
             if ( sw_status == "on" ):                
@@ -395,8 +410,7 @@ class BasePlugin:
                 
         return
 
-    def Thermometers(self, strData):        
-    
+    def Thermometers(self, strData):            
         Domoticz.Log("No. of thermometers found: " + str(len(self.GetValue(strData["response"], "thermometers",{}))))
         i = 0        
         for Thermometer in self.GetValue(strData["response"], "thermometers", {}):
@@ -409,8 +423,7 @@ class BasePlugin:
         return
 
   
-    def Sensors(self, strData):
-    
+    def Sensors(self, strData):    
         Domoticz.Log("No. of sensors found: " + str(len(self.GetValue(strData["response"], "kakusensors",{}))))
 
         for Sensor in self.GetValue(strData["response"], "kakusensors",{}):
