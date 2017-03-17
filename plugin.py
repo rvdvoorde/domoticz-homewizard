@@ -1,11 +1,11 @@
 ##           Homewizard Plugin
 ##
 ##           Author:         Raymond Van de Voorde
-##           Version:        2.0.9
-##           Last modified:  14-03-2017
+##           Version:        2.0.11
+##           Last modified:  17-03-2017
 ##
 """
-<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.9" externallink="https://www.homewizard.nl/">
+<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.11" externallink="https://www.homewizard.nl/">
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1" />
 	<param field="Password" label="Password" width="200px" required="true" default="1234" />
@@ -26,6 +26,7 @@ import Domoticz
 import json
 import base64
 import http.client
+import datetime
 
 class BasePlugin:
     isConnected = False
@@ -143,6 +144,34 @@ class BasePlugin:
                 self.Thermometers(Response)
                 self.Sensors(Response)                
 
+                try:
+                    # Update the rain device, create it if not there
+                    if ( len(Response["response"]["rainmeters"]) != 0 ):
+                        if ( self.wind_id not in Devices ):
+                            Domoticz.Device(Name="Wind",  Unit=self.wind_id, TypeName="Wind+Temp+Chill").Create()
+                
+                        rain_0 = self.GetValue(Response["response"]["rainmeters"][0], "mm", 0)
+                        rain_1 = self.GetValue(Response["response"]["rainmeters"][0], "3h", 0)
+                        UpdateDevice(self.rain_id, 0, str(rain_1) + ";" + str(rain_0), True)
+                except:
+                    Domoticz.Error("Error reading rainmeter values")
+
+                try:
+                    # Update the wind device, create it if not there
+                    if ( len(Response["response"]["windmeters"]) != 0 ):
+                        if ( self.rain_id not in Devices ):
+                            Domoticz.Device(Name="Regen",  Unit=self.rain_id, TypeName="Rain").Create()
+
+                        wind_0 = round(float(self.GetValue(Response["response"]["windmeters"][0], "ws", 0) / 3.6) * 10, 2)
+                        wind_1 = self.GetValue(Response["response"]["windmeters"][0], "dir", "N 0")
+                        wind_1 = wind_1.split(" ", 1)
+                        wind_2 = round(float(self.GetValue(Response["response"]["windmeters"][0], "gu", 0) / 3.6) * 10, 2)
+                        wind_3 = self.GetValue(Response["response"]["windmeters"][0], "wc", 0)
+                        wind_4 = self.GetValue(Response["response"]["windmeters"][0], "te", 0)
+                        UpdateDevice(self.wind_id, 0, str(wind_1[1])+";"+str(wind_1[0])+";"+str(wind_0)+";"+str(wind_2)+";"+str(wind_4)+";"+str(wind_3))
+                except:
+                    Domoticz.Error("Error reading wind values")
+                    
                 Domoticz.Debug("Ended handling get-sensors")
                 
             elif ( self.hw_route == "/get-status" ):
@@ -159,11 +188,8 @@ class BasePlugin:
                     UpdateDevice(self.preset_id, 2, "40")
 
                 try:
-                    # Update the wind device, create it if not there
-                    if ( len(Response["response"]["windmeters"]) == 1 ):
-                        if ( self.rain_id not in Devices ):
-                            Domoticz.Device(Name="Regen",  Unit=self.rain_id, TypeName="Rain").Create()
-
+                    # Update the wind device
+                    if ( len(Response["response"]["windmeters"]) != 0 ):
                         wind_0 = round(float(self.GetValue(Response["response"]["windmeters"][0], "ws", 0) / 3.6) * 10, 2)
                         wind_1 = self.GetValue(Response["response"]["windmeters"][0], "dir", "N 0")
                         wind_1 = wind_1.split(" ", 1)
@@ -176,10 +202,7 @@ class BasePlugin:
 
                 try:
                     # Update the rain device, create it if not there
-                    if ( len(Response["response"]["rainmeters"]) == 1 ):
-                        if ( self.wind_id not in Devices ):
-                            Domoticz.Device(Name="Wind",  Unit=self.wind_id, TypeName="Wind+Temp+Chill").Create()
-                
+                    if ( len(Response["response"]["rainmeters"]) != 0 ):
                         rain_0 = self.GetValue(Response["response"]["rainmeters"][0], "mm", 0)
                         rain_1 = self.GetValue(Response["response"]["rainmeters"][0], "3h", 0)
                         UpdateDevice(self.rain_id, 0, str(rain_1) + ";" + str(rain_0))
@@ -351,7 +374,7 @@ class BasePlugin:
                 if response.status == 200:            
                     self.onMessage(response.read(), "200", "")
             except:
-                Domoticz.Debug("Failed to communicate to system at ip " + Parameters["Address"])
+                Domoticz.Debug("Failed to communicate to system at ip " + Parameters["Address"] + ". Command" + command )
                 return False
 
             return True
@@ -551,10 +574,11 @@ def DumpConfigToLog():
 def stringToBase64(s):
     return base64.b64encode(s.encode('utf-8')).decode("utf-8")
   
-def UpdateDevice(Unit, nValue, sValue):
+def UpdateDevice(Unit, nValue, sValue, AlwaysUpdate=False):    
     # Make sure that the Domoticz device still exists (they can be deleted) before updating it 
     if (Unit in Devices):
-        if (Devices[Unit].nValue != nValue) or (Devices[Unit].sValue != sValue):
+        if ((Devices[Unit].nValue != nValue) or (Devices[Unit].sValue != sValue) or (AlwaysUpdate == True)):
             Devices[Unit].Update(nValue=nValue, sValue=str(sValue))
             Domoticz.Log("Update "+str(nValue)+":'"+str(sValue)+"' ("+Devices[Unit].Name+")")
     return
+
