@@ -1,11 +1,11 @@
 ##           Homewizard Plugin
 ##
 ##           Author:         Raymond Van de Voorde
-##           Version:        2.0.11
-##           Last modified:  17-03-2017
+##           Version:        2.0.12
+##           Last modified:  19-03-2017
 ##
 """
-<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.11" externallink="https://www.homewizard.nl/">
+<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.12" externallink="https://www.homewizard.nl/">
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1" />
 	<param field="Password" label="Password" width="200px" required="true" default="1234" />
@@ -48,7 +48,8 @@ class BasePlugin:
     wind_id= 202
     preset_id = 121
     sensor_id= 61
-    el_id= 122    
+    el_id= 122
+    gas_id = 123
     UpdateCount = 20
 
     
@@ -119,7 +120,7 @@ class BasePlugin:
             return
         
         self.hw_status = Response["status"]        
-        self.hw_route = Response["request"]["route"]        
+        self.hw_route = Response["request"]["route"]            
 
         Domoticz.Debug("Received route: " + self.hw_route)
         
@@ -237,13 +238,11 @@ class BasePlugin:
                         elif ( self.hw_types[str(sw_id)] == "dimmer" ):
                             if ( sw_status == "0" ):
                                 UpdateDevice(sw_id, 0, str(Switch["dimlevel"]))
-                            else:                    
+                            else:
                                 UpdateDevice(sw_id, 2, str(Switch["dimlevel"]))
-                        elif ( self.hw_types[str(sw_id)] == "somfy" ) or ( self.hw_types[str(sw_id)] == "asun" ):                            
-                            UpdateDevice(sw_id, int(Switch["mode"]), "")
                             
                 except:
-                    Domoticz.Error("Error reading switch values")
+                    Domoticz.Error("Error reading switch values! Switchtype: "+self.hw_types[str(sw_id)])
 
 
                 # Update the sensors
@@ -269,30 +268,55 @@ class BasePlugin:
                 UpdateDevice(self.en_id, 0, str(en_0)+";"+str(en[1]))
                 
                 Domoticz.Debug("Ended handle route /get-status")
-                
+
+            # Update the energylink
             elif ( self.hw_route == "/el" ):
                 self.Energylinks(Response)
 
+            # Handle a switch command from the Homewizard
             elif ( self.hw_route == "/sw" ):                
-                if ( self.LastCommand == "Set Level" ):
-                    UpdateDevice(self.LastUnit, 2, str(self.LastLevel))                
-                elif ( self.LastCommand == 'On' and self.hw_types[str(self.LastUnit-1)] == "dimmer"):
-                    UpdateDevice(self.LastUnit, 2, "")
-                elif ( self.LastCommand == 'On' and self.hw_types[str(self.LastUnit-1)] == "switch"):
-                    UpdateDevice(self.LastUnit, 1, "")
-                else:
-                    UpdateDevice(self.LastUnit, 0, "")                                    
+                try:
+                    if ( self.LastCommand == "Set Level" ):
+                        UpdateDevice(self.LastUnit, 2, str(self.LastLevel))                
+                    elif ( self.LastCommand == "On" ):
+                        if ( self.hw_types[str(self.LastUnit-1)] == "dimmer" ):
+                            UpdateDevice(self.LastUnit, 2, "")
+                        else:
+                            UpdateDevice(self.LastUnit, 1, "")                        
+                    else:
+                        UpdateDevice(self.LastUnit, 0, "")
+                except:
+                    Domoticz.Error("Error handling the /sw response!")
                     
                 Domoticz.Debug("Handled the /sw route")
+
+            # Handle a Somfy command from the Homewizard
+            elif ( self.hw_route == "/sf" ):
+                try:
+                    if ( self.LastCommand == "On" ):
+                        UpdateDevice(self.LastUnit, 1, "")
+                    else:
+                        UpdateDevice(self.LastUnit, 0, "")
+                except:
+                    Domoticz.Error("Error handling the /sf response!")
+
+
+            elif ( self.hw_route == "" ):
+                # Seems this is the virtual route... (bug in HW?)
+                try:
+                    if ( self.LastCommand == "On" ):
+                        UpdateDevice(self.LastUnit, 1, "")
+                    else:
+                        UpdateDevice(self.LastUnit, 0, "")
+                except:
+                    Domoticz.Error("Error handling the empty ("") response!")
                 
             else:
                 Domoticz.Debug("Unhandled route received! (" + self.hw_route+")")
                 
         return True
 
-
-                
-            
+                    
     def onCommand(self, Unit, Command, Level, Hue):
         self.LastUnit = Unit
         self.LastCommand = Command
@@ -315,7 +339,16 @@ class BasePlugin:
         # Is it a dimmer?
         Domoticz.Debug("Detected hardware: "+self.hw_types[str(Unit)])        
         if ( str(Command) == "Set Level" ):
-            self.sendMessage = "sw/dim/"+str(hw_id)+"/"+str(Level)            
+            self.sendMessage = "sw/dim/"+str(hw_id)+"/"+str(Level)
+            
+        # Is it a Somfy?
+        elif  ( self.hw_types[str(Unit)] == "somfy"):
+            if ( str(Command).lower() == "on" ):
+                self.sendMessage = "sf/"+str(hw_id)+"/down"
+            else:
+                self.sendMessage = "sf/"+str(hw_id)+"/up"
+
+        # Just try the default switch command
         else:                
             if (Command == "On"):
                 self.sendMessage = "sw/"+str(hw_id)+"/on"
@@ -362,6 +395,7 @@ class BasePlugin:
 ##            Domoticz.Connect()
 
             conn = http.client.HTTPConnection(Parameters["Address"], timeout=2)
+            Domoticz.Debug("Sending command: "+str(command))
             
             try:
                 if ( command == "handshake" ):
@@ -404,14 +438,12 @@ class BasePlugin:
             self.hw_types.update({str(sw_id): sw_type})
             
             if ( sw_id not in Devices ):                
-                if ( sw_type == "switch" ):
-                    Domoticz.Device(Name=sw_name,  Unit=sw_id, TypeName="Switch").Create()
-                elif ( sw_type == "virtual" ):
-                    Domoticz.Device(Name=sw_name,  Unit=sw_id, TypeName="Switch").Create()
+                if ( sw_type == "switch" ) or ( sw_type == "virtual" ):
+                    Domoticz.Device(Name=sw_name,  Unit=sw_id, TypeName="Switch").Create()                
                 elif ( sw_type == "dimmer" ):
                     Domoticz.Device(Name=sw_name,  Unit=sw_id, Type=244, Subtype=73, Switchtype=7).Create()
                 elif ( sw_type == "somfy" ) or ( sw_type == "asun" ):
-                    Domoticz.Device(Name=sw_name,  Unit=sw_id, TypeName="Switch").Create()
+                    Domoticz.Device(Name=sw_name,  Unit=sw_id, Type=244, Subtype=73, Switchtype=3).Create()
 
             if ( sw_status == "on" ):                
                 if ( sw_type == "dimmer" ):
@@ -422,14 +454,15 @@ class BasePlugin:
                 sw_status = "0"
                 
             # Update the switch status
-            if ( sw_type == "switch" ):
-                UpdateDevice(sw_id, int(sw_status), "")
-            elif ( sw_type == "virtual" ):
-                UpdateDevice(sw_id, int(sw_status), "")
-            elif ( sw_type == "dimmer" ):                
-                UpdateDevice(sw_id, int(sw_status), str(Switch["dimlevel"]))
-            elif ( sw_type == "somfy" ):
-                UpdateDevice(sw_id, int(Switch["mode"]), "")
+            try:
+                if ( sw_type == "switch" ) or ( sw_type == "virtual" ):
+                    UpdateDevice(sw_id, int(sw_status), "")            
+                elif ( sw_type == "dimmer" ):                
+                    UpdateDevice(sw_id, int(sw_status), str(Switch["dimlevel"]))
+                elif ( sw_type == "somfy" ):
+                    UpdateDevice(sw_id, int(Switch["mode"]), "")
+            except:
+                Domoticz.Error("Error at setting device status! Device: "+sw_name)
                 
         return
 
@@ -475,19 +508,27 @@ class BasePlugin:
         if ( el_no == 0 ):
             return
         
-        el_low_in = strData["response"][0]["consumed"]
-        el_low_out = strData["response"][0]["produced"]
+        el_low_in = self.GetValue(strData["response"][0], "consumed", 0)
+        el_low_out = self.GetValue(strData["response"][0], "produced", 0)
     
-        el_high_in = strData["response"][1]["consumed"]
-        el_high_out = strData["response"][1]["produced"]
+        el_high_in = self.GetValue(strData["response"][1], "consumed", 0)
+        el_high_out = self.GetValue(strData["response"][1], "produced", 0)
 
-        gas_in = strData["response"][2]["consumed"]
+        gas_in = self.GetValue(strData["response"][2], "consumed", 0)
+        
+        if ( self.el_id not in Devices ):
+            Domoticz.Device(Name="Electricity",  Unit=self.el_id, Type=250, Subtype=1).Create()
 
-        # if ( self.el_id not in Devices ):
-            #TODO: Create the device
+        if ( self.gas_id not in Devices ):
+            Domoticz.Device(Name="Gas",  Unit=self.gas_id, Type=251, Subtype=2).Create()
 
+        # Update electric usage
         Data = str(el_low_in)+";"+str(el_high_in)+";"+str(el_low_out)+";"+str(el_high_out)+";"+"0;0"
-        UpdateDevice( self.el_id, 0, )
+        UpdateDevice( self.el_id, 0, Data)
+
+        # Update gas usage
+        UpdateDevice ( self.gas_id, 0, str(gas_in))
+        
         return 
         
     def is_number(self, s):
