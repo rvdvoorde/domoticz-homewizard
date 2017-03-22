@@ -1,11 +1,11 @@
 ##           Homewizard Plugin
 ##
 ##           Author:         Raymond Van de Voorde
-##           Version:        2.0.12
-##           Last modified:  19-03-2017
+##           Version:        2.0.13
+##           Last modified:  22-03-2017
 ##
 """
-<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.12" externallink="https://www.homewizard.nl/">
+<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.13" externallink="https://www.homewizard.nl/">
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1" />
 	<param field="Password" label="Password" width="200px" required="true" default="1234" />
@@ -134,11 +134,12 @@ class BasePlugin:
                 Domoticz.Debug("Started handling get-sensors")
                 # Add the preset selector switch
                 if ( self.preset_id not in Devices ):
-                    LevelActions = "LevelActions:"+stringToBase64("||||")+";"
-                    LevelNames = "LevelNames:"+stringToBase64("Off|Home|Away|Sleep|Holiday")+";"
-                    Other = "LevelOffHidden:dHJ1ZQ==;SelectorStyle:MA==" # true is "dHJ1ZQ==", false is "ZmFsc2U=",0 is "MA==", 1 is "MQ=="
-                    Options = LevelActions+LevelNames+Other
-                    Domoticz.Device(Name="Preset", Unit=self.preset_id, TypeName="Selector Switch", Options=Options).Create()
+                    Options = {"LevelActions": "||||",
+                                  "LevelNames": "Off|Home|Away|Sleep|Holiday",
+                                  "LevelOffHidden": "true",
+                                  "SelectorStyle": "0"
+                               }
+                    Domoticz.Device(Name="Preset", Unit=self.preset_id, TypeName="Selector Switch", Used=1, Options=Options).Create()                    
         
                 self.EnergyMeters(Response)
                 self.Switches(Response)            
@@ -360,8 +361,8 @@ class BasePlugin:
     
         return True
 
-    def onNotification(self, Data):
-        Domoticz.Log("Notification: " + str(Data))
+    def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
+        Domoticz.Log("Notification: " + Name + "," + Subject + "," + Text + "," + Status + "," + str(Priority) + "," + Sound + "," + ImageFile)
         return
 
     def onHeartbeat(self):
@@ -408,7 +409,7 @@ class BasePlugin:
                 if response.status == 200:            
                     self.onMessage(response.read(), "200", "")
             except:
-                Domoticz.Debug("Failed to communicate to system at ip " + Parameters["Address"] + ". Command" + command )
+                Domoticz.Debug("Failed to communicate to system at ip " + Parameters["Address"] + ". Command " + command )
                 return False
 
             return True
@@ -585,10 +586,10 @@ def onCommand(Unit, Command, Level, Hue):
     global _plugin
     _plugin.onCommand(Unit, Command, Level, Hue)
 
-def onNotification(Data):
+def onNotification(Name, Subject, Text, Status, Priority, Sound, ImageFile):
     global _plugin
-    _plugin.onNotification(Data)
-
+    _plugin.onNotification(Name, Subject, Text, Status, Priority, Sound, ImageFile)
+    
 def onDisconnect():
     global _plugin
     _plugin.onDisconnect()
