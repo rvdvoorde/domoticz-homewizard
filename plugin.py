@@ -1,16 +1,16 @@
 ##           Homewizard Plugin
 ##
 ##           Author:         Raymond Van de Voorde
-##           Version:        2.0.15
+##           Version:        2.0.16
 ##           Last modified:  25-03-2017
 ##
 """
-<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.15" externallink="https://www.homewizard.nl/">
+<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.16" externallink="https://www.homewizard.nl/">
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1" />
 	<param field="Password" label="Password" width="200px" required="true" default="1234" />
-        <param field="Mode1" label="Poll interval" width="100px" required="true" default=20 />
-        <param field="Mode2" label="Full update after x polls" width="100px" required="true" default=20 />
+        <param field="Mode1" label="Poll interval" width="100px" required="true" default=15 />
+        <param field="Mode2" label="Full update after x polls" width="100px" required="true" default=10 />
         
         <param field="Mode6" label="Debug" width="75px">
             <options>
@@ -25,7 +25,6 @@
 import Domoticz
 import json
 import http.client
-import datetime
 
 class BasePlugin:
     isConnected = False
