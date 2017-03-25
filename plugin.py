@@ -1,11 +1,11 @@
 ##           Homewizard Plugin
 ##
 ##           Author:         Raymond Van de Voorde
-##           Version:        2.0.13
-##           Last modified:  22-03-2017
+##           Version:        2.0.15
+##           Last modified:  25-03-2017
 ##
 """
-<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.13" externallink="https://www.homewizard.nl/">
+<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.15" externallink="https://www.homewizard.nl/">
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1" />
 	<param field="Password" label="Password" width="200px" required="true" default="1234" />
@@ -24,7 +24,6 @@
 
 import Domoticz
 import json
-import base64
 import http.client
 import datetime
 
@@ -311,6 +310,9 @@ class BasePlugin:
                         UpdateDevice(self.LastUnit, 0, "")
                 except:
                     Domoticz.Error("Error handling the empty ("") response!")
+
+            elif ( self.hw_route == "/preset" ):                                            
+                UpdateDevice(self.preset_id, 2, self.LastLevel)                
                 
             else:
                 Domoticz.Debug("Unhandled route received! (" + self.hw_route+")")
@@ -334,7 +336,9 @@ class BasePlugin:
             elif ( Level == 30 ):
                 self.sendMessage = "preset/2"
             elif ( Level == 40 ):
-                self.sendMessage = "preset/3"                
+                self.sendMessage = "preset/3"
+
+            self.hwConnect(self.sendMessage)
             return True
         
         # Is it a dimmer?
@@ -612,9 +616,6 @@ def DumpConfigToLog():
         Domoticz.Debug("Device sValue:   '" + Devices[x].sValue + "'")
         Domoticz.Debug("Device LastLevel: " + str(Devices[x].LastLevel))
     return
-
-def stringToBase64(s):
-    return base64.b64encode(s.encode('utf-8')).decode("utf-8")
   
 def UpdateDevice(Unit, nValue, sValue, AlwaysUpdate=False):    
     # Make sure that the Domoticz device still exists (they can be deleted) before updating it 
@@ -623,4 +624,5 @@ def UpdateDevice(Unit, nValue, sValue, AlwaysUpdate=False):
             Devices[Unit].Update(nValue=nValue, sValue=str(sValue))
             Domoticz.Log("Update "+str(nValue)+":'"+str(sValue)+"' ("+Devices[Unit].Name+")")
     return
+
 
