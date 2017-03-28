@@ -1,11 +1,11 @@
 ##           Homewizard Plugin
 ##
 ##           Author:         Raymond Van de Voorde
-##           Version:        2.0.16
-##           Last modified:  25-03-2017
+##           Version:        2.0.17
+##           Last modified:  28-03-2017
 ##
 """
-<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.16" externallink="https://www.homewizard.nl/">
+<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.17" externallink="https://www.homewizard.nl/">
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1" />
 	<param field="Password" label="Password" width="200px" required="true" default="1234" />
@@ -232,7 +232,7 @@ class BasePlugin:
                             sw_status = "0"
 
                         # Update the switch/dimmer status
-                        if ( self.hw_types[str(sw_id)] == "switch" ) or ( self.hw_types[str(sw_id)] == "virtual" ):
+                        if ( self.hw_types[str(sw_id)] == "switch" ):
                             UpdateDevice(sw_id, int(sw_status), "")
                         elif ( self.hw_types[str(sw_id)] == "dimmer" ):
                             if ( sw_status == "0" ):
@@ -262,9 +262,12 @@ class BasePlugin:
                     Domoticz.Error("Error reading sensor values")
 
                 # Update energymeters (Wattcher)
-                en = Devices[self.en_id].sValue.split(";")
-                en_0 = self.GetValue(Response["response"]["energymeters"][0], "po", "0")
-                UpdateDevice(self.en_id, 0, str(en_0)+";"+str(en[1]))
+                try:
+                    en = Devices[self.en_id].sValue.split(";")
+                    en_0 = self.GetValue(Response["response"]["energymeters"][0], "po", "0")
+                    UpdateDevice(self.en_id, 0, str(en_0)+";"+str(en[1]))
+                except:
+                    Domoticz.Error("Error on setting the Wattcher values!")
                 
                 Domoticz.Debug("Ended handle route /get-status")
 
@@ -504,34 +507,37 @@ class BasePlugin:
                     
         return
 
-    def Energylinks(self, strData):
-        el_no = len(self.GetValue(strData, "response",{}))
+    def Energylinks(self, jsonData):
+        try:
+            el_no = len(self.GetValue(jsonData, "response",{}))
         
-        Domoticz.Log("No. of Energylinks found: " + str(el_no))
+            Domoticz.Log("No. of Energylinks found: " + str(el_no))
 
-        if ( el_no == 0 ):
-            return
+            if ( el_no == 0 ):
+                return
         
-        el_low_in = self.GetValue(strData["response"][0], "consumed", 0)
-        el_low_out = self.GetValue(strData["response"][0], "produced", 0)
+            el_low_in = self.GetValue(jsonData["response"][0], "consumed", 0)
+            el_low_out = self.GetValue(jsonData["response"][0], "produced", 0)
     
-        el_high_in = self.GetValue(strData["response"][1], "consumed", 0)
-        el_high_out = self.GetValue(strData["response"][1], "produced", 0)
+            el_high_in = self.GetValue(jsonData["response"][1], "consumed", 0)
+            el_high_out = self.GetValue(jsonData["response"][1], "produced", 0)
 
-        gas_in = self.GetValue(strData["response"][2], "consumed", 0)
+            gas_in = self.GetValue(jsonData["response"][2], "consumed", 0)
         
-        if ( self.el_id not in Devices ):
-            Domoticz.Device(Name="Electricity",  Unit=self.el_id, Type=250, Subtype=1).Create()
+            if ( self.el_id not in Devices ):
+                Domoticz.Device(Name="Electricity",  Unit=self.el_id, Type=250, Subtype=1).Create()
 
-        if ( self.gas_id not in Devices ):
-            Domoticz.Device(Name="Gas",  Unit=self.gas_id, Type=251, Subtype=2).Create()
+            if ( self.gas_id not in Devices ):
+                Domoticz.Device(Name="Gas",  Unit=self.gas_id, Type=251, Subtype=2).Create()
 
-        # Update electric usage
-        Data = str(el_low_in)+";"+str(el_high_in)+";"+str(el_low_out)+";"+str(el_high_out)+";"+"0;0"
-        UpdateDevice( self.el_id, 0, Data)
+            # Update electric usage
+            Data = str(el_low_in)+";"+str(el_high_in)+";"+str(el_low_out)+";"+str(el_high_out)+";"+"0;0"
+            UpdateDevice( self.el_id, 0, Data)
 
-        # Update gas usage
-        UpdateDevice ( self.gas_id, 0, str(gas_in))
+            # Update gas usage
+            UpdateDevice ( self.gas_id, 0, str(gas_in))
+        except:
+            Domoticz.Error("Error at setting the energylink values!")
         
         return 
         
