@@ -1,11 +1,11 @@
 ##           Homewizard Plugin
 ##
 ##           Author:         Raymond Van de Voorde
-##           Version:        2.0.18
+##           Version:        2.0.19
 ##           Last modified:  06-04-2017
 ##
 """
-<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.18" externallink="https://www.homewizard.nl/">
+<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.19" externallink="https://www.homewizard.nl/">
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1" />
 	<param field="Password" label="Password" width="200px" required="true" default="1234" />
@@ -27,6 +27,8 @@ import json
 import http.client
 
 class BasePlugin:
+    enabled = True
+    
     isConnected = False
     LastUnit = 0
     
@@ -38,7 +40,6 @@ class BasePlugin:
     FullUpdate = 20
     
     #Const
-    Headers = {"Connection": "keep-alive", "Accept": "Content-Type: text/html; charset=UTF-8"}
     hw_port = "80"
     term_id = 111
     en_id= 101
@@ -82,20 +83,23 @@ class BasePlugin:
         except:
             Domoticz.Error("Invalid data received!")
             return
-        
-        self.hw_status = Response["status"]        
-        self.hw_route = Response["request"]["route"]            
 
+        # Response header details
+        self.hw_status = self.GetValue(Response, "status", "error")
+        self.hw_route = self.GetValue(Response["request"], "route", "error")
         Domoticz.Debug("Received route: " + self.hw_route)
-        
+
+        # Start handling the data if status is ok
         if ( self.hw_status == "ok" ):
             # Did we sent the handshake?
             if ( self.hw_route == "/handshake" ):
                 self.hw_version = Response["version"]
                 Domoticz.Log("Homewizard version: " + self.hw_version)                
-                
+
+            # Handle get-sensors route, also adds devices when not there...
             elif ( self.hw_route == "/get-sensors" ):
                 Domoticz.Debug("Started handling get-sensors")
+
                 # Add the preset selector switch
                 if ( self.preset_id not in Devices ):
                     Options = {"LevelActions": "||||",
@@ -104,7 +108,8 @@ class BasePlugin:
                                   "SelectorStyle": "0"
                                }
                     Domoticz.Device(Name="Preset", Unit=self.preset_id, TypeName="Selector Switch", Used=1, Options=Options).Create()                    
-        
+
+                # Handle the other devices
                 self.EnergyMeters(Response)
                 self.Switches(Response)            
                 self.Thermometers(Response)
@@ -139,7 +144,8 @@ class BasePlugin:
                     Domoticz.Error("Error reading wind values")
                     
                 Domoticz.Debug("Ended handling get-sensors")
-                
+
+            # Handle the status update route
             elif ( self.hw_route == "/get-status" ):
                 Domoticz.Debug("Starting handle route /get-status")
                 
