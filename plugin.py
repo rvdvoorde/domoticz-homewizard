@@ -1,11 +1,11 @@
 ##           Homewizard Plugin
 ##
 ##           Author:         Raymond Van de Voorde
-##           Version:        2.0.17
-##           Last modified:  28-03-2017
+##           Version:        2.0.18
+##           Last modified:  06-04-2017
 ##
 """
-<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.17" externallink="https://www.homewizard.nl/">
+<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.18" externallink="https://www.homewizard.nl/">
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1" />
 	<param field="Password" label="Password" width="200px" required="true" default="1234" />
@@ -54,59 +54,25 @@ class BasePlugin:
     def onStart(self):
         if Parameters["Mode6"] == "Debug":
             Domoticz.Debugging(1)
+            DumpConfigToLog()
 
         self.FullUpdate = int(Parameters["Mode2"])
-        
-        DumpConfigToLog()        
-        
+
+        # If poll interval between 10 and 60 sec.
         if  10 <= int(Parameters["Mode1"]) <= 60:
             Domoticz.Log("Update interval set to " + Parameters["Mode1"])            
             Domoticz.Heartbeat(int(Parameters["Mode1"]))
         else:
+            # If not, set to 20 sec.
             Domoticz.Heartbeat(20)
 
         Domoticz.Log("Full update after " + Parameters["Mode2"] + " polls")
 
-        self.hwConnect("get-sensors")
-        
+        # Start the Homewizard connection
+        self.hwConnect("get-sensors")        
         return True
         
     def onConnect(self, Status, Description):
-        self.isConnected = True
-        
-        if (Status == 0):
-            if ( len(self.sendMessage) > 0 ):
-                Domoticz.Log("Sending onCommand message: " + self.sendMessage)
-                Domoticz.Send("", "GET", "/"+Parameters["Password"]+"/"+self.sendMessage, self.Headers)
-                self.sendMessage = ""
-                return True            
-
-            self.FullUpdate = self.FullUpdate - 1
-            if ( self.FullUpdate == 1 ):
-                Domoticz.Debug("Sending get-sensors")
-                Domoticz.Send("", "GET", "/"+Parameters["Password"]+"/get-sensors", self.Headers)
-                return True
-
-            if ( self.FullUpdate == 1 ):
-                Domoticz.Debug("Sending /el/get/0/readings")
-                Domoticz.Send("", "GET", "/"+Parameters["Password"]+"/el/get/0/readings", self.Headers)
-                self.FullUpdate = self.UpdateCount
-                return True
-            
-            
-            if ( self.hw_route == "" ):
-                Domoticz.Debug("Sending handshake")
-                Domoticz.Send("", "GET", "/handshake", self.Headers)
-            elif ( self.hw_route == "/handshake" ):
-                Domoticz.Debug("Sending get-sensors")
-                Domoticz.Send("", "GET", "/"+Parameters["Password"]+"/get-sensors", self.Headers)
-            elif ( self.hw_route == "/get-sensors" ):
-                Domoticz.Debug("Sending get-status")
-                Domoticz.Send("", "GET", "/"+Parameters["Password"]+"/get-status", self.Headers)
-            else:
-                Domoticz.Debug("Sending get-status")
-                Domoticz.Send("", "GET", "/"+Parameters["Password"]+"/get-status", self.Headers)
-
         return True
 
     def onMessage(self, Data, Status, Extra):        
@@ -396,32 +362,23 @@ class BasePlugin:
         return True
 
     def hwConnect(self, command):
-        if ( self.isConnected == False ):
-##            Domoticz.Transport(Transport="TCP/IP", Address=Parameters["Address"], Port=self.hw_port)
-##            Domoticz.Protocol("HTTP")        
-##            Domoticz.Connect()
-
-            conn = http.client.HTTPConnection(Parameters["Address"], timeout=2)
-            Domoticz.Debug("Sending command: "+str(command))
+        conn = http.client.HTTPConnection(Parameters["Address"], timeout=2)
+        Domoticz.Debug("Sending command: "+str(command))
             
-            try:
-                if ( command == "handshake" ):
-                    conn.request("GET", "/" + command)
-                else:
-                    conn.request("GET", "/" + Parameters["Password"] + "/" + command)
-                response = conn.getresponse()
-                conn.close()
+        try:
+            if ( command == "handshake" ):
+                conn.request("GET", "/" + command)
+            else:
+                conn.request("GET", "/" + Parameters["Password"] + "/" + command)
+            response = conn.getresponse()
+            conn.close()
     
-                if response.status == 200:            
-                    self.onMessage(response.read(), "200", "")
-            except:
-                Domoticz.Debug("Failed to communicate to system at ip " + Parameters["Address"] + ". Command " + command )
-                return False
-
-            return True
-        else:
-            Domoticz.Debug("Already connected at hwConnect")
+            if response.status == 200:            
+                self.onMessage(response.read(), "200", "")
+        except:
+            Domoticz.Debug("Failed to communicate to system at ip " + Parameters["Address"] + ". Command " + command )
             return False
+
 
     def EnergyMeters(self, strData):                
         i = 0
