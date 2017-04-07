@@ -1,11 +1,11 @@
 ##           Homewizard Plugin
 ##
 ##           Author:         Raymond Van de Voorde
-##           Version:        2.0.19
-##           Last modified:  06-04-2017
+##           Version:        2.0.20
+##           Last modified:  07-04-2017
 ##
 """
-<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.19" externallink="https://www.homewizard.nl/">
+<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.20" externallink="https://www.homewizard.nl/">
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1" />
 	<param field="Password" label="Password" width="200px" required="true" default="1234" />
@@ -324,6 +324,8 @@ class BasePlugin:
         elif  ( self.hw_types[str(Unit)] == "somfy"):
             if ( str(Command).lower() == "on" ):
                 self.sendMessage = "sf/"+str(hw_id)+"/down"
+            if ( str(Command).lower() == "stop" ):
+                self.sendMessage = "sf/"+str(hw_id)+"/stop"
             else:
                 self.sendMessage = "sf/"+str(hw_id)+"/up"
 
@@ -382,7 +384,7 @@ class BasePlugin:
             if response.status == 200:            
                 self.onMessage(response.read(), "200", "")
         except:
-            Domoticz.Debug("Failed to communicate to system at ip " + Parameters["Address"] + ". Command " + command )
+            Domoticz.Error("Failed to communicate to system at ip " + Parameters["Address"] + ". Command " + command )
             return False
 
 
@@ -413,7 +415,7 @@ class BasePlugin:
                 elif ( sw_type == "dimmer" ):
                     Domoticz.Device(Name=sw_name,  Unit=sw_id, Type=244, Subtype=73, Switchtype=7).Create()
                 elif ( sw_type == "somfy" ) or ( sw_type == "asun" ):
-                    Domoticz.Device(Name=sw_name,  Unit=sw_id, Type=244, Subtype=73, Switchtype=3).Create()
+                    Domoticz.Device(Name=sw_name,  Unit=sw_id, Type=244, Subtype=73, Switchtype=15).Create()
 
             if ( sw_status == "on" ):                
                 if ( sw_type == "dimmer" ):
