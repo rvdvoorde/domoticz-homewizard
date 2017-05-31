@@ -198,7 +198,7 @@ class BasePlugin:
                         sw_id = Switch["id"] + 1
                         sw_status = self.GetValue(Switch, "status", "off").lower()
 
-                        if ( sw_status == "on" ):
+                        if ( str(sw_status).lower() == "on" ):
                             sw_status = "1"
                         else:
                             sw_status = "0"
@@ -252,7 +252,7 @@ class BasePlugin:
                 try:
                     if ( self.LastCommand == "Set Level" ):
                         UpdateDevice(self.LastUnit, 2, str(self.LastLevel))                
-                    elif ( self.LastCommand == "On" ):
+                    elif ( str(self.LastCommand).lower() == "on" ):
                         if ( self.hw_types[str(self.LastUnit-1)] == "dimmer" ):
                             UpdateDevice(self.LastUnit, 2, "")
                         else:
@@ -267,7 +267,7 @@ class BasePlugin:
             # Handle a Somfy command from the Homewizard
             elif ( self.hw_route == "/sf" ):
                 try:
-                    if ( self.LastCommand == "On" ):
+                    if ( str(self.LastCommand).lower() == "on" ):
                         UpdateDevice(self.LastUnit, 1, "")
                     else:
                         UpdateDevice(self.LastUnit, 0, "")
@@ -278,7 +278,7 @@ class BasePlugin:
             elif ( self.hw_route == "" ):
                 # Seems this is the virtual route... (bug in HW?)
                 try:
-                    if ( self.LastCommand == "On" ):
+                    if ( str(self.LastCommand).lower() == "on" ):
                         UpdateDevice(self.LastUnit, 1, "")
                     else:
                         UpdateDevice(self.LastUnit, 0, "")
@@ -324,14 +324,14 @@ class BasePlugin:
         elif  ( self.hw_types[str(Unit)] == "somfy"):
             if ( str(Command).lower() == "on" ):
                 self.sendMessage = "sf/"+str(hw_id)+"/down"
-            if ( str(Command).lower() == "stop" ):
+            elif ( str(Command).lower() == "stop" ):
                 self.sendMessage = "sf/"+str(hw_id)+"/stop"
             else:
                 self.sendMessage = "sf/"+str(hw_id)+"/up"
 
         # Just try the default switch command
         else:                
-            if (Command == "On"):
+            if (str(Command).lower() == "on"):
                 self.sendMessage = "sw/"+str(hw_id)+"/on"
             else:
                 self.sendMessage = "sw/"+str(hw_id)+"/off"
@@ -417,7 +417,7 @@ class BasePlugin:
                 elif ( sw_type == "somfy" ) or ( sw_type == "asun" ):
                     Domoticz.Device(Name=sw_name,  Unit=sw_id, Type=244, Subtype=73, Switchtype=15).Create()
 
-            if ( sw_status == "on" ):                
+            if ( str(sw_status).lower() == "on" ):
                 if ( sw_type == "dimmer" ):
                     sw_status = "2"
                 else:
