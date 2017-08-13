@@ -16,7 +16,7 @@ It currently supports the following hardware:
 <li>Energylink (untested by me)</li>
 </ul>
 
-<b>Please keep in mind you need to have the latest beta version of Domoticz running</b>
+<b>This plugin should work from Domoticz version 3.8153 (Stable release)</b>
 
 <hr/>
 
