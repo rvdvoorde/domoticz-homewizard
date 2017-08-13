@@ -32,6 +32,12 @@ Restart Domoticz
 sudo systemctl restart domoticz
 ```
 
+  After installation update the plugin with the following commands
+  ```bash
+  cd domoticz/plugins/domoticz-homewizard
+  git pull
+  ```
+  
 You can now add the Homewizard on the Hardware page.
 
 <b>For synology users</b>
