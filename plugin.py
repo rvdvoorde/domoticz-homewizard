@@ -1,13 +1,14 @@
 ##           Homewizard Plugin
 ##
 ##           Author:         Raymond Van de Voorde
-##           Version:        2.0.20
-##           Last modified:  07-04-2017
+##           Version:        2.0.21
+##           Last modified:  13-08-2017
 ##
 """
-<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.20" externallink="https://www.homewizard.nl/">
+<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.21" externallink="https://www.homewizard.nl/">
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1" />
+        <param field="Port" label="Port" width="200px" required="true" default="80" />
 	<param field="Password" label="Password" width="200px" required="true" default="1234" />
         <param field="Mode1" label="Poll interval" width="100px" required="true" default=15 />
         <param field="Mode2" label="Full update after x polls" width="100px" required="true" default=10 />
@@ -370,7 +371,7 @@ class BasePlugin:
         return True
 
     def hwConnect(self, command):
-        conn = http.client.HTTPConnection(Parameters["Address"], timeout=2)
+        conn = http.client.HTTPConnection(Parameters["Address"] + ":" + Parameters["Port"], timeout=2)
         Domoticz.Debug("Sending command: "+str(command))
             
         try:
@@ -384,7 +385,7 @@ class BasePlugin:
             if response.status == 200:            
                 self.onMessage(response.read(), "200", "")
         except:
-            Domoticz.Error("Failed to communicate to system at ip " + Parameters["Address"] + ". Command " + command )
+            Domoticz.Error("Failed to communicate to system at ip " + Parameters["Address"] + " and port " + Parameters["Port"] + ". Command " + command )
             return False
 
 
