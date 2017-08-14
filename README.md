@@ -22,13 +22,10 @@ It currently supports the following hardware:
 
 <b>Installation Raspberry PI</b>
 
-Move to the plugin directory
+To install this plugin on your raspberry enter the following commands using putty
 ```bash
 cd domoticz/plugins
 git clone https://github.com/rvdvoorde/domoticz-homewizard.git
-```
-Restart Domoticz
-```bash
 sudo systemctl restart domoticz
 ```
   
@@ -47,3 +44,11 @@ The plugins directory should be here (thanks to c4coer)
 ```bash
 cd /usr/local/domoticz/var/plugins
 ```
+
+<hr/>
+
+Having problems with a crashing domoticz every x hours while using python plugins?
+
+Remove the file script_device_PIRsmarter.py from you scripts/python directory to
+solve this. For more info read this: https://github.com/domoticz/domoticz/issues/1605
+
