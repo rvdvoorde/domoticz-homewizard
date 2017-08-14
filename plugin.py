@@ -1,11 +1,11 @@
 ##           Homewizard Plugin
 ##
 ##           Author:         Raymond Van de Voorde
-##           Version:        2.0.21
-##           Last modified:  13-08-2017
+##           Version:        2.0.22
+##           Last modified:  14-08-2017
 ##
 """
-<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.21" externallink="https://www.homewizard.nl/">
+<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.22" externallink="https://www.homewizard.nl/">
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1" />
         <param field="Port" label="Port" width="200px" required="true" default="80" />
@@ -169,6 +169,7 @@ class BasePlugin:
                         wind_2 = round(float(self.GetValue(Response["response"]["windmeters"][0], "gu", 0) / 3.6) * 10, 2)
                         wind_3 = self.GetValue(Response["response"]["windmeters"][0], "wc", 0)
                         wind_4 = self.GetValue(Response["response"]["windmeters"][0], "te", 0)
+
                         UpdateDevice(self.wind_id, 0, str(wind_1[1])+";"+str(wind_1[0])+";"+str(wind_0)+";"+str(wind_2)+";"+str(wind_4)+";"+str(wind_3))
                 except:
                     Domoticz.Error("Error reading wind values")
@@ -235,12 +236,13 @@ class BasePlugin:
                     Domoticz.Error("Error reading sensor values")
 
                 # Update energymeters (Wattcher)
-                try:
-                    en = Devices[self.en_id].sValue.split(";")
-                    en_0 = self.GetValue(Response["response"]["energymeters"][0], "po", "0")
-                    UpdateDevice(self.en_id, 0, str(en_0)+";"+str(en[1]))
-                except:
-                    Domoticz.Error("Error on setting the Wattcher values!")
+                if ( len(Response["response"]["energymeters"]) != 0 ):
+                    try:                    
+                        en = Devices[self.en_id].sValue.split(";")
+                        en_0 = self.GetValue(Response["response"]["energymeters"][0], "po", "0")
+                        UpdateDevice(self.en_id, 0, str(en_0)+";"+str(en[1]))
+                    except:
+                        Domoticz.Error("Error on setting the Wattcher values!")
                 
                 Domoticz.Debug("Ended handle route /get-status")
 
@@ -355,7 +357,7 @@ class BasePlugin:
 
         if ( self.FullUpdate < 1 ):
             Domoticz.Debug("Sending /el/get/0/readings")
-            self.hwConnect("el/get/0/readingss")
+            self.hwConnect("el/get/0/readings")
             self.FullUpdate = int(Parameters["Mode2"])
             return True
             
@@ -595,5 +597,3 @@ def UpdateDevice(Unit, nValue, sValue, AlwaysUpdate=False):
             Devices[Unit].Update(nValue=nValue, sValue=str(sValue))
             Domoticz.Log("Update "+str(nValue)+":'"+str(sValue)+"' ("+Devices[Unit].Name+")")
     return
-
-
