@@ -1,11 +1,11 @@
 ##           Homewizard Plugin
 ##
 ##           Author:         Raymond Van de Voorde
-##           Version:        2.0.22
-##           Last modified:  14-08-2017
+##           Version:        2.0.23
+##           Last modified:  17-08-2017
 ##
 """
-<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.22" externallink="https://www.homewizard.nl/">
+<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.23" externallink="https://www.homewizard.nl/">
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1" />
         <param field="Port" label="Port" width="200px" required="true" default="80" />
@@ -41,7 +41,6 @@ class BasePlugin:
     FullUpdate = 20
     
     #Const
-    hw_port = "80"
     term_id = 111
     en_id= 101
     rain_id= 201
@@ -50,6 +49,12 @@ class BasePlugin:
     sensor_id= 61
     el_id= 122
     gas_id = 123
+    hl_pump = 126
+    hl_heating = 127
+    hl_dhw = 128
+    hl_rte = 129
+    hl_rsp = 130
+    hl_tte = 131
     UpdateCount = 20
 
     
@@ -114,7 +119,8 @@ class BasePlugin:
                 self.EnergyMeters(Response)
                 self.Switches(Response)            
                 self.Thermometers(Response)
-                self.Sensors(Response)                
+                self.Sensors(Response)
+                self.Heatlinks(Response)
 
                 try:
                     # Update the rain device, create it if not there
@@ -475,6 +481,7 @@ class BasePlugin:
                     
         return
 
+    # TODO: Verify it works...
     def Energylinks(self, jsonData):
         try:
             el_no = len(self.GetValue(jsonData, "response",{}))
@@ -508,6 +515,50 @@ class BasePlugin:
             Domoticz.Error("Error at setting the energylink values!")
         
         return 
+
+
+    # TODO: Verify it works...
+    def Heatlinks(self, jsonData):
+        try:
+            hl_no = len(self.GetValue(jsonData["response"], "heatlinks",{}))
+            Domoticz.Log("No. of Heatlinks found: " + str(hl_no))
+
+            # If no heatlinks, return
+            if ( hl_no == 0 ):
+                return
+
+            # Switch pump exists? If not create it.
+            if ( hl_pump not in Devices ):
+                Domoticz.Device(Name='HL Pump',  Unit=hl_pump, TypeName="Switch").Create()
+
+            # Switch heating exists? If not create it.
+            if ( hl_heating not in Devices ):
+                Domoticz.Device(Name='HL Heating',  Unit=hl_heating, TypeName="Switch").Create()
+
+            # Set the pump switch value
+            hl_state = self.GetValue(jsonData["response"]["heatlinks"][0], "pump", "off").lower()
+            if ( str(hl_state).lower() == "on" ):
+                hl_state = "1"
+            else:
+                hl_state = "0"
+                
+            UpdateDevice(hl_pump, int(hl_state), "")
+
+
+            # Set the heating switch value
+            hl_state = self.GetValue(jsonData["response"]["heatlinks"][0], "heating", "off").lower()
+            if ( str(hl_state).lower() == "on" ):
+                hl_state = "1"
+            else:
+                hl_state = "0"
+                
+            UpdateDevice(hl_heating, int(hl_state), "")
+            
+        except:
+            Domoticz.Error("Error at setting the heatlink values!")
+        
+        return
+    
         
     def is_number(self, s):
         try:
