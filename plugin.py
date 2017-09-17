@@ -125,9 +125,9 @@ class BasePlugin:
                 try:
                     # Update the rain device, create it if not there
                     if ( len(Response["response"]["rainmeters"]) != 0 ):
-                        if ( self.wind_id not in Devices ):
-                            Domoticz.Device(Name="Wind",  Unit=self.wind_id, TypeName="Wind+Temp+Chill").Create()
-                
+                        if ( self.rain_id not in Devices ):
+                             Domoticz.Device(Name="Regen",  Unit=self.rain_id, TypeName="Rain").Create()
+
                         rain_0 = self.GetValue(Response["response"]["rainmeters"][0], "mm", 0)
                         rain_1 = self.GetValue(Response["response"]["rainmeters"][0], "3h", 0)
                         UpdateDevice(self.rain_id, 0, str(rain_1) + ";" + str(rain_0), True)
@@ -137,8 +137,9 @@ class BasePlugin:
                 try:
                     # Update the wind device, create it if not there
                     if ( len(Response["response"]["windmeters"]) != 0 ):
-                        if ( self.rain_id not in Devices ):
-                            Domoticz.Device(Name="Regen",  Unit=self.rain_id, TypeName="Rain").Create()
+                        if ( self.wind_id not in Devices ):
+                            Domoticz.Device(Name="Wind",  Unit=self.wind_id, TypeName="Wind+Temp+Chill").Create()
+
 
                         wind_0 = round(float(self.GetValue(Response["response"]["windmeters"][0], "ws", 0) / 3.6) * 10, 2)
                         wind_1 = self.GetValue(Response["response"]["windmeters"][0], "dir", "N 0")
@@ -453,8 +454,8 @@ class BasePlugin:
         for Thermometer in self.GetValue(strData["response"], "thermometers", {}):
             if ( self.term_id+i not in Devices ):
                 Domoticz.Device(Name=Thermometer["name"],  Unit=self.term_id+i, TypeName="Temp+Hum").Create()
-            te_0 = self.GetValue(Thermometer, "te", "0")
-            hu_0 = self.GetValue(Thermometer, "hu", "0")
+            te_0 = self.GetValue(Thermometer, "te", 0)
+            hu_0 = self.GetValue(Thermometer, "hu", 0)
             UpdateDevice(self.term_id+i, 0, str(te_0)+";"+str(hu_0)+";"+str(self.HumStat(hu_0)))
             i = i + 1
         return
