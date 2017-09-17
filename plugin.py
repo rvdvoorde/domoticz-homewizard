@@ -454,9 +454,9 @@ class BasePlugin:
         for Thermometer in self.GetValue(strData["response"], "thermometers", {}):
             if ( self.term_id+i not in Devices ):
                 Domoticz.Device(Name=Thermometer["name"],  Unit=self.term_id+i, TypeName="Temp+Hum").Create()
-            te_0 = self.GetValue(Thermometer, "te", "0")
-            hu_0 = self.GetValue(Thermometer, "hu", "0")
-            UpdateDevice(str(self.term_id+i), 0, str(te_0)+";"+str(hu_0)+";"+str(self.HumStat(hu_0)))
+            te_0 = self.GetValue(Thermometer, "te", 0)
+            hu_0 = self.GetValue(Thermometer, "hu", 0)
+            UpdateDevice(self.term_id+i, 0, str(te_0)+";"+str(hu_0)+";"+str(self.HumStat(hu_0)))
             i = i + 1
         return
 
