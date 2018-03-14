@@ -1,11 +1,11 @@
 ##           Homewizard Plugin
 ##
 ##           Author:         Raymond Van de Voorde
-##           Version:        2.0.23
-##           Last modified:  17-08-2017
+##           Version:        2.0.24
+##           Last modified:  14-03-2018
 ##
 """
-<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.23" externallink="https://www.homewizard.nl/">
+<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.24" externallink="https://www.homewizard.nl/">
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1" />
         <param field="Port" label="Port" width="200px" required="true" default="80" />
@@ -456,7 +456,11 @@ class BasePlugin:
                 Domoticz.Device(Name=Thermometer["name"],  Unit=self.term_id+i, TypeName="Temp+Hum").Create()
             te_0 = self.GetValue(Thermometer, "te", 0)
             hu_0 = self.GetValue(Thermometer, "hu", 0)
-            UpdateDevice(self.term_id+i, 0, str(te_0)+";"+str(hu_0)+";"+str(self.HumStat(hu_0)))
+
+            # Skip the update if both values are 0
+            if not ( te_0 == 0 ) and not ( hu_0 == 0 ):
+                UpdateDevice(self.term_id+i, 0, str(te_0)+";"+str(hu_0)+";"+str(self.HumStat(hu_0)))
+                
             i = i + 1
         return
 
@@ -483,6 +487,7 @@ class BasePlugin:
         return
 
     # TODO: Verify it works...
+    # Update 11-12-2017, fails...
     def Energylinks(self, jsonData):
         try:
             el_no = len(self.GetValue(jsonData, "response",{}))
@@ -519,6 +524,7 @@ class BasePlugin:
 
 
     # TODO: Verify it works...
+    # Update 11-12-2017, fails...
     def Heatlinks(self, jsonData):
         try:
             hl_no = len(self.GetValue(jsonData["response"], "heatlinks",{}))
