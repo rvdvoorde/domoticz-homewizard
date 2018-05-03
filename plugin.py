@@ -482,7 +482,9 @@ class BasePlugin:
                 elif ( sens_type == "contact" ):
                     Domoticz.Device(Name=sens_name,  Unit=sens_id, Type=17, Switchtype=2).Create()
                 elif ( sens_type == "smoke" ) or ( sens_type == "smoke868" ):
-                    Domoticz.Device(Name=sens_name,  Unit=sens_id, Type=32, Subtype=3).Create()                
+                    Domoticz.Device(Name=sens_name,  Unit=sens_id, Type=32, Subtype=3).Create()
+		elif ( sens_type == "light" ):
+                    Domoticz.Device(Name=sens_name,  Unit=sens_id, Type=244, Switchtype=12).Create()      
                     
         return
 
