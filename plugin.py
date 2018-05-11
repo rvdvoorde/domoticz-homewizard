@@ -531,6 +531,10 @@ class BasePlugin:
         try:
             el_no = len(self.GetValue(jsonData["response"], "energylinks",{}))
             Domoticz.Log("No. of Energylinks found: " + str(el_no))
+            # If no energylinks, return
+            if ( el_no == 0 ):
+                return
+
             
             el_current = self.GetValue(jsonData["response"][0]["used"]["po"])
             el_total = self.GetValue(jsonData["response"][0]["used"]["dayTotal"])
