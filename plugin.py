@@ -121,6 +121,7 @@ class BasePlugin:
                 self.Thermometers(Response)
                 self.Sensors(Response)
                 self.Heatlinks(Response)
+                self.full_Energylinks(Response)
 
                 try:
                     # Update the rain device, create it if not there
@@ -394,8 +395,7 @@ class BasePlugin:
             if response.status == 200:            
                 self.onMessage(response.read(), "200", "")
         except:
-            if Parameters["Mode6"] == "Debug":
-                Domoticz.Error("Failed to communicate to system at ip " + Parameters["Address"] + " and port " + Parameters["Port"] + ". Command " + command )
+            Domoticz.Debug("Failed to communicate to system at ip " + Parameters["Address"] + " and port " + Parameters["Port"] + ". Command " + command )
             return False
 
 
@@ -490,7 +490,7 @@ class BasePlugin:
         return
 
     # TODO: Verify it works...
-    # Update 11-12-2017, fails...
+    # Update 11-05-2018, Partly works. Only need to update the current usage... 
     def Energylinks(self, jsonData):
         try:
             el_no = len(self.GetValue(jsonData, "response",{}))
@@ -524,6 +524,23 @@ class BasePlugin:
             Domoticz.Error("Error at setting the energylink values!")
         
         return 
+
+    # TODO: Verify it works...
+    # Update 11-05-2018, UNTESTED! NEED HELP!!!
+    def full_Energylinks(self, jsonData):
+        try:
+            el_no = len(self.GetValue(jsonData["response"], "energylinks",{}))
+            Domoticz.Log("No. of Energylinks found: " + str(el_no))
+            
+            el_current = self.GetValue(jsonData["response"][0]["used"]["po"])
+            el_total = self.GetValue(jsonData["response"][0]["used"]["dayTotal"])
+            Domoticz.Debug("Current Energy usage: " + str(el_current))
+            Domoticz.Debug("Day total Energy usage: " + str(el_total))
+            Data = str(el_current) + ";" + str(el_total)
+            UpdateDevice( self.el_id, 0, Data)
+            
+        except:
+            Domoticz.Error("Error at setting the full energylink values!")
 
 
     # TODO: Verify it works...
