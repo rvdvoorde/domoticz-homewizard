@@ -7,14 +7,15 @@ It currently supports the following hardware:
 <li>Doorbell</li>
 <li>Motion and door sensors</li>
 <li>Smoke detectors</li>
-<li>Somfy devices (untested by me)</li>
+<li>Somfy devices</li>
 <li>Thermometers</li>
 <li>Windmeter</li>
 <li>Rainmeter</li>
 <li>Wattcher</li>
 <li>Virtual switches</li>
+<li>Heatlink</li>
 <li>Energylink (untested by me)</li>
-<li>Heatlink (untested by me)</li>
+<li>Light sensor (untested by me)</li>
 </ul>
 
 <b>This plugin should work from Domoticz version 3.8153 (Stable release)</b>
