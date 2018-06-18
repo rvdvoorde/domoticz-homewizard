@@ -28,6 +28,13 @@ import json
 import http.client
 
 class BasePlugin:
+    global el_low_in
+    global el_low_out
+    global el_high_in
+    global el_high_out
+    global el_tariff
+    global gas_previous
+
     enabled = True
     
     isConnected = False
@@ -39,6 +46,12 @@ class BasePlugin:
     hw_types = {}
     sendMessage = ""
     FullUpdate = 20
+    el_low_in = 0
+    el_low_out = 0
+    el_high_in = 0
+    el_high_out = 0
+    el_tariff = 1
+    gas_previous = 0
     
     #Const
     term_id = 111
@@ -49,20 +62,20 @@ class BasePlugin:
     sensor_id= 61
     el_id= 122
     gas_id = 123
+    water_id = 124
     hl_pump = 126
     hl_heating = 127
     hl_dhw = 128
     hl_rte = 129
     hl_rsp = 130
     hl_tte = 131
+    hl_wte = 132
     UpdateCount = 20
-
-    
+   
     def onStart(self):
         if Parameters["Mode6"] == "Debug":
             Domoticz.Debugging(1)
             DumpConfigToLog()
-
         self.FullUpdate = int(Parameters["Mode2"])
 
         # If poll interval between 10 and 60 sec.
@@ -76,6 +89,7 @@ class BasePlugin:
         Domoticz.Log("Full update after " + Parameters["Mode2"] + " polls")
 
         # Start the Homewizard connection
+        self.hwConnect("el/get/0/readings")
         self.hwConnect("get-sensors")        
         return True
         
@@ -115,49 +129,41 @@ class BasePlugin:
                                }
                     Domoticz.Device(Name="Preset", Unit=self.preset_id, TypeName="Selector Switch", Used=1, Options=Options).Create()                    
 
-                # Handle the other devices
-                self.EnergyMeters(Response)
-                self.Switches(Response)            
-                self.Thermometers(Response)
-                self.Sensors(Response)
-                self.Heatlinks(Response)
-                self.full_Energylinks(Response)
+                if ( len(Response["response"]["switches"]) != 0 ):
+                    self.Switches(Response)            
 
-                try:
-                    # Update the rain device, create it if not there
-                    if ( len(Response["response"]["rainmeters"]) != 0 ):
-                        if ( self.rain_id not in Devices ):
-                             Domoticz.Device(Name="Regen",  Unit=self.rain_id, TypeName="Rain").Create()
+                # uv meters can be handled here
 
-                        rain_0 = self.GetValue(Response["response"]["rainmeters"][0], "mm", 0)
-                        rain_1 = self.GetValue(Response["response"]["rainmeters"][0], "3h", 0)
-                        UpdateDevice(self.rain_id, 0, str(rain_1) + ";" + str(rain_0), True)
-                except:
-                    Domoticz.Error("Error reading rainmeter values")
+                if ( len(Response["response"]["windmeters"]) != 0 ):
+                    self.WindMeters(Response)
 
-                try:
-                    # Update the wind device, create it if not there
-                    if ( len(Response["response"]["windmeters"]) != 0 ):
-                        if ( self.wind_id not in Devices ):
-                            Domoticz.Device(Name="Wind",  Unit=self.wind_id, TypeName="Wind+Temp+Chill").Create()
+                if ( len(Response["response"]["rainmeters"]) != 0 ):
+                    self.RainMeters(Response)
 
+                if ( len(Response["response"]["thermometers"]) != 0 ):
+                    self.Thermometers(Response)
 
-                        wind_0 = round(float(self.GetValue(Response["response"]["windmeters"][0], "ws", 0) / 3.6) * 10, 2)
-                        wind_1 = self.GetValue(Response["response"]["windmeters"][0], "dir", "N 0")
-                        wind_1 = wind_1.split(" ", 1)
-                        wind_2 = round(float(self.GetValue(Response["response"]["windmeters"][0], "gu", 0) / 3.6) * 10, 2)
-                        wind_3 = self.GetValue(Response["response"]["windmeters"][0], "wc", 0)
-                        wind_4 = self.GetValue(Response["response"]["windmeters"][0], "te", 0)
-                        UpdateDevice(self.wind_id, 0, str(wind_1[1])+";"+str(wind_1[0])+";"+str(wind_0)+";"+str(wind_2)+";"+str(wind_4)+";"+str(wind_3))
-                except:
-                    Domoticz.Error("Error reading wind values")
-                    
+                # weatherdisplays can be handled here
+
+                if ( len(Response["response"]["energymeters"]) != 0 ):
+                    self.EnergyMeters(Response)
+
+                if ( len(Response["response"]["energylinks"]) != 0 ):
+                    self.Energylinks(Response)
+ 
+                if ( len(Response["response"]["heatlinks"]) != 0 ):
+                    self.Heatlinks(Response)
+
+                if ( len(Response["response"]["kakusensors"]) != 0 ):
+                    self.Sensors(Response)
+                   
                 Domoticz.Debug("Ended handling get-sensors")
 
             # Handle the status update route
             elif ( self.hw_route == "/get-status" ):
                 Domoticz.Debug("Starting handle route /get-status")
-                
+
+                # update preset
                 self.hw_preset = self.GetValue(Response["response"], "preset", 0)
                 if self.hw_preset == 0:
                     UpdateDevice(self.preset_id, 2, "10")
@@ -168,95 +174,41 @@ class BasePlugin:
                 elif self.hw_preset == 3:
                     UpdateDevice(self.preset_id, 2, "40")
 
-                try:
-                    # Update the wind device
-                    if ( len(Response["response"]["windmeters"]) != 0 ):
-                        wind_0 = round(float(self.GetValue(Response["response"]["windmeters"][0], "ws", 0) / 3.6) * 10, 2)
-                        wind_1 = self.GetValue(Response["response"]["windmeters"][0], "dir", "N 0")
-                        wind_1 = wind_1.split(" ", 1)
-                        wind_2 = round(float(self.GetValue(Response["response"]["windmeters"][0], "gu", 0) / 3.6) * 10, 2)
-                        wind_3 = self.GetValue(Response["response"]["windmeters"][0], "wc", 0)
-                        wind_4 = self.GetValue(Response["response"]["windmeters"][0], "te", 0)
+                if ( len(Response["response"]["switches"]) != 0 ):
+                    self.Switches(Response)  
 
-                        UpdateDevice(self.wind_id, 0, str(wind_1[1])+";"+str(wind_1[0])+";"+str(wind_0)+";"+str(wind_2)+";"+str(wind_4)+";"+str(wind_3))
-                except:
-                    Domoticz.Error("Error reading wind values")
+                # uv meters can be handled here
 
-                try:
-                    # Update the rain device, create it if not there
-                    if ( len(Response["response"]["rainmeters"]) != 0 ):
-                        rain_0 = self.GetValue(Response["response"]["rainmeters"][0], "mm", 0)
-                        rain_1 = self.GetValue(Response["response"]["rainmeters"][0], "3h", 0)
-                        UpdateDevice(self.rain_id, 0, str(rain_1) + ";" + str(rain_0))
-                except:
-                    Domoticz.Error("Error reading rainmeter values")
+                if ( len(Response["response"]["windmeters"]) != 0 ):
+                    self.WindMeters(Response)
+
+                if ( len(Response["response"]["rainmeters"]) != 0 ):
+                    self.RainMeters(Response)
+
+                if ( len(Response["response"]["thermometers"]) != 0 ):
+                    self.Thermometers(Response)
+
+                # weatherdisplays can be handled here
                 
-                try:
-                    #Update the thermometes
-                    x = 0            
-                    for thermometer in self.GetValue(Response["response"], "thermometers", {}):
-                        tmp_0 = self.GetValue(thermometer, "te", 0)
-                        tmp_1 = self.GetValue(thermometer, "hu", 0)
-                        UpdateDevice(self.term_id+x, 0, str(tmp_0) + ";" + str(tmp_1) + ";" + str(self.HumStat(tmp_1)))
-                        x = x + 1
-                except:
-                    Domoticz.Error("Error reading thermometers values")                
-                
-                try:
-                    # Update the switches
-                    for Switch in self.GetValue(Response["response"], "switches", {}):
-                        sw_id = Switch["id"] + 1
-                        sw_status = self.GetValue(Switch, "status", "off").lower()
-
-                        if ( str(sw_status).lower() == "on" ):
-                            sw_status = "1"
-                        else:
-                            sw_status = "0"
-
-                        # Update the switch/dimmer status
-                        if ( self.hw_types[str(sw_id)] == "switch" ):
-                            UpdateDevice(sw_id, int(sw_status), "")
-                        elif ( self.hw_types[str(sw_id)] == "dimmer" ):
-                            if ( sw_status == "0" ):
-                                UpdateDevice(sw_id, 0, str(Switch["dimlevel"]))
-                            else:
-                                UpdateDevice(sw_id, 2, str(Switch["dimlevel"]))
-                            
-                except:
-                    Domoticz.Error("Error reading switch values! Switchtype: "+self.hw_types[str(sw_id)])
-
-
-                # Update the sensors
-                try:
-                    for Sensor in self.GetValue(Response["response"], "kakusensors", {}):
-                        sens_id = Sensor["id"] + self.sensor_id
-                        sens_status = str(self.GetValue(Sensor, "status", "no")).lower()                                
-
-                        if ( sens_status == "yes" ):
-                            if ( self.hw_types[str(sens_id)] == "smoke" ) or ( self.hw_types[str(sens_id)] == "smoke868" ):
-                                UpdateDevice(sens_id, 6, "")
-                            else:
-                                UpdateDevice(sens_id, 1, "")
-                        else:                    
-                            UpdateDevice(sens_id, 0, "")
-                                                                                    
-                except:
-                    Domoticz.Error("Error reading sensor values")
-
-                # Update energymeters (Wattcher)
                 if ( len(Response["response"]["energymeters"]) != 0 ):
-                    try:                    
-                        en = Devices[self.en_id].sValue.split(";")
-                        en_0 = self.GetValue(Response["response"]["energymeters"][0], "po", "0")
-                        UpdateDevice(self.en_id, 0, str(en_0)+";"+str(en[1]))
-                    except:
-                        Domoticz.Error("Error on setting the Wattcher values!")
-                
+                    self.EnergyMeters(Response)
+
+                if ( len(Response["response"]["energylinks"]) != 0 ):
+                    self.Energylinks(Response)
+
+                if ( len(Response["response"]["heatlinks"]) != 0 ):
+                    self.Heatlinks(Response)
+
+                if ( len(Response["response"]["kakusensors"]) != 0 ):
+                    self.Sensors(Response)               
+
                 Domoticz.Debug("Ended handle route /get-status")
 
-            # Update the energylink
+            # Handle the energylinks update route
             elif ( self.hw_route == "/el" ):
-                self.Energylinks(Response)
+
+                Domoticz.Debug("Start handle route /el")
+                self.Energylinks_Totals(Response)
 
             # Handle a switch command from the Homewizard
             elif ( self.hw_route == "/sw" ):                
@@ -357,7 +309,7 @@ class BasePlugin:
         return
 
     def onHeartbeat(self):
-        self.FullUpdate = self.FullUpdate - 1
+        self.FullUpdate -=  1
         if ( self.FullUpdate == 1 ):
             Domoticz.Debug("Sending get-sensors")
             self.hwConnect("get-sensors")
@@ -398,8 +350,42 @@ class BasePlugin:
             Domoticz.Debug("Failed to communicate to system at ip " + Parameters["Address"] + " and port " + Parameters["Port"] + ". Command " + command )
             return False
 
+    def WindMeters(self, strData):
+        
+        Domoticz.Debug("Retrieve WindMeter Data: ")
+        try:
+            # Update the wind device, create it if not there
+            if ( self.wind_id not in Devices ):
+                Domoticz.Device(Name="Wind",  Unit=self.wind_id, TypeName="Wind+Temp+Chill").Create()
+
+            wind_0 = round(float(self.GetValue(strData["response"]["windmeters"][0], "ws", 0) / 3.6) * 10, 2)
+            wind_1 = self.GetValue(strData["response"]["windmeters"][0], "dir", "N 0")
+            wind_1 = wind_1.split(" ", 1)
+            wind_2 = round(float(self.GetValue(strData["response"]["windmeters"][0], "gu", 0) / 3.6) * 10, 2)
+            wind_3 = self.GetValue(strData["response"]["windmeters"][0], "wc", 0)
+            wind_4 = self.GetValue(strData["response"]["windmeters"][0], "te", 0)
+            UpdateDevice(self.wind_id, 0, str(wind_1[1])+";"+str(wind_1[0])+";"+str(wind_0)+";"+str(wind_2)+";"+str(wind_4)+";"+str(wind_3))
+        except:
+            Domoticz.Error("Error reading wind values")
+        return
+
+    def RainMeters(self, strData):
+        
+        Domoticz.Debug("Retrieve RainMeter Data: ")
+        try:
+            # Update the rain device, create it if not there
+            if ( self.rain_id not in Devices ):
+                Domoticz.Device(Name="Regen",  Unit=self.rain_id, TypeName="Rain").Create()
+
+            rain_0 = self.GetValue(strData["response"]["rainmeters"][0], "mm", 0)
+            rain_1 = self.GetValue(strData["response"]["rainmeters"][0], "3h", 0)
+            UpdateDevice(self.rain_id, 0, str(rain_1) + ";" + str(rain_0))
+        except:
+            Domoticz.Error("Error reading rainmeter values")
+        return
 
     def EnergyMeters(self, strData):                
+        Domoticz.Debug("No. of Energymeters found: " + str(len(strData["response"]["energymeters"])))
         i = 0
         for Energymeter in self.GetValue(strData["response"], "energymeters", {}):
             if ( self.en_id+i not in Devices ):
@@ -412,7 +398,7 @@ class BasePlugin:
 
 
     def Switches(self, strData):    
-        Domoticz.Log("No. of switches found: " + str(len(strData["response"]["switches"])))
+        Domoticz.Debug("No. of switches found: " + str(len(strData["response"]["switches"])))
         for Switch in self.GetValue(strData["response"], "switches", {}):
             sw_id = Switch["id"] + 1
             sw_status = self.GetValue(Switch, "status", "off").lower()            
@@ -445,12 +431,12 @@ class BasePlugin:
                 elif ( sw_type == "somfy" ):
                     UpdateDevice(sw_id, int(Switch["mode"]), "")
             except:
-                Domoticz.Error("Error at setting device status! Device: "+sw_name)
+                Domoticz.Error("Error at setting device status! Switches: "+sw_name)
                 
-        return
+        return                            
 
     def Thermometers(self, strData):            
-        Domoticz.Log("No. of thermometers found: " + str(len(self.GetValue(strData["response"], "thermometers",{}))))
+        Domoticz.Debug("No. of thermometers found: " + str(len(self.GetValue(strData["response"], "thermometers",{}))))
         i = 0        
         for Thermometer in self.GetValue(strData["response"], "thermometers", {}):
             if ( self.term_id+i not in Devices ):
@@ -467,14 +453,13 @@ class BasePlugin:
 
   
     def Sensors(self, strData):    
-        Domoticz.Log("No. of sensors found: " + str(len(self.GetValue(strData["response"], "kakusensors",{}))))
+        Domoticz.Debug("No. of sensors found: " + str(len(self.GetValue(strData["response"], "kakusensors",{}))))
 
         for Sensor in self.GetValue(strData["response"], "kakusensors",{}):
             sens_id = Sensor["id"] + self.sensor_id            
             sens_type = self.GetValue(Sensor, "type", "Unknown").lower()
             sens_name = self.GetValue(Sensor, "name", "Unknown")
             self.hw_types.update({str(sens_id): str(sens_type)})
-            
             if ( sens_id not in Devices ):                
                 if ( sens_type == "doorbell" ):                    
                     Domoticz.Device(Name=sens_name,  Unit=sens_id, Type=17, Switchtype=1).Create()
@@ -485,74 +470,165 @@ class BasePlugin:
                 elif ( sens_type == "smoke" ) or ( sens_type == "smoke868" ):
                     Domoticz.Device(Name=sens_name,  Unit=sens_id, Type=32, Subtype=3).Create()
                 elif ( sens_type == "light" ):
-                    Domoticz.Device(Name=sens_name,  Unit=sens_id, Type=244, Switchtype=12).Create()      
+                    Domoticz.Device(Name=sens_name,  Unit=sens_id, Type=244, Switchtype=12).Create()
+                elif ( sens_type == "leakage" ):
+                    Domoticz.Device(Name=sens_name,  Unit=sens_id, Type=32 , Switchtype=8).Create()      
+
+            # Update the sensors
+            sens_status = str(self.GetValue(Sensor, "status", "no")).lower()                                
+
+            if ( sens_status == "yes" ):
+                if ( self.hw_types[str(sens_id)] == "smoke" ) or ( self.hw_types[str(sens_id)] == "smoke868" ):
+                    UpdateDevice(sens_id, 6, "")
+                else:
+                    UpdateDevice(sens_id, 1, "")
+            else:                    
+                UpdateDevice(sens_id, 0, "")
                     
         return
 
     # TODO: Verify it works...
-    # Update 11-05-2018, Partly works. Only need to update the current usage... 
-    def Energylinks(self, jsonData):
+    # Update 11-05-2018, UNTESTED! NEED HELP!!!
+    def Energylinks(self, strData):
+
+        global el_tariff
+        water = 0
+        solar = 0
+
+        el_no = len(self.GetValue(strData["response"], "energylinks",{}))
+        Domoticz.Debug("Nr. of Energylinks found: " + str(el_no))
+
+        # Domoticz.Debug(str(strData))
+        el_tariff = self.GetValue(strData["response"]["energylinks"][0], "tariff", 0)
+        Domoticz.Debug("Current Meter has " +str(el_tariff)+" counter")
+
+        el_t1 = self.GetValue(strData["response"]["energylinks"][0], "t1", "")
+        Domoticz.Debug("Current T1 value: " +str(el_t1))
+
+        el_t2 = self.GetValue(strData["response"]["energylinks"][0], "t2", "")
+        Domoticz.Debug("Current T2 value: " +str(el_t2))
+
+        if (el_t1 == "") and (el_t2 == ""):
+            Domoticz.Debug("No special meters found")
+        else:
+            Domoticz.Log("Special Meter found t1 : "+str(el_t1)+" t2 : "+str(el_t2))
+
+            # if Solar panels connected
+            if (el_t1 == "solar"):
+                solar_po   = self.GetValue(Energylinks["s1"][0], "po"      , 0)
+                solar_used = self.GetValue(Energylinks["s1"][0], "dayTotal", 0)
+
+            if (el_t2 == "solar"):
+                solar_po   = self.GetValue(Energylinks["s2"][0], "po"      , 0)
+                solar_used = self.GetValue(Energylinks["s2"][0], "dayTotal", 0)
+
+            # if water meter connected    
+            if (el_t1 == "water"):
+                water_po   = self.GetValue(Energylinks["s1"][0], "po"      , 0)
+                water_used = self.GetValue(Energylinks["s1"][0], "dayTotal", 0) / 1000
+
+            if (el_t2 == "water"):
+                water_po   = self.GetValue(Energylinks["s2"][0], "po"      , 0)
+                water_used = self.GetValue(Energylinks["s2"][0], "dayTotal", 0) / 1000
+
+            if (el_t1 == "water") or (el_t2 == "water"):
+                if ( self.water_id not in Devices ):
+                    Domoticz.Device(Name="Water", Unit=self.water_id, Type=113).Create()
+                Data = str(water_po)+";"+str(water_used)
+                UpdateDevice( self.el_id, 0, Data)
+        
+        if ( el_no == 0 ):
+            return
+
         try:
-            el_no = len(self.GetValue(jsonData, "response",{}))
-        
-            Domoticz.Log("No. of Energylinks found: " + str(el_no))
+            for Energylinks in self.GetValue(strData["response"], "energylinks", {}):
+                
+                #Domoticz.Debug("Data found : "+str(Energylinks))
 
-            if ( el_no == 0 ):
-                return
-        
-            el_low_in = self.GetValue(jsonData["response"][0], "consumed", 0)
-            el_low_out = self.GetValue(jsonData["response"][0], "produced", 0)
-    
-            el_high_in = self.GetValue(jsonData["response"][1], "consumed", 0)
-            el_high_out = self.GetValue(jsonData["response"][1], "produced", 0)
+                power_current = self.GetValue(Energylinks["used"],"po", 0)
+                Domoticz.Debug("Current Energy usage: " + str(power_current))
 
-            gas_in = self.GetValue(jsonData["response"][2], "consumed", 0)
-        
+                el_total = self.GetValue(Energylinks["used"],"dayTotal", 0)
+                Domoticz.Debug("Day total Energy usage: " + str(el_total))
+
+                ag_total = self.GetValue(Energylinks["aggregate"],"dayTotal", 0)
+                Domoticz.Debug("Day Aggregate Energy usage: " + str(ag_total))
+
+        except:
+            Domoticz.Error("Error at getting the energylink values!")
+
+        # add solar power to meter reading
+        if (el_t1 == "solar") or (el_t2 == "solar"):
+            power_current = power_current + solar_po
+            el_total = el_total + solar_used
+
+        try:
             if ( self.el_id not in Devices ):
-                Domoticz.Device(Name="Electricity",  Unit=self.el_id, Type=250, Subtype=1).Create()
+                Domoticz.Device(Name="Electricity", Unit=self.el_id, Type=250, Subtype=1).Create()
 
-            if ( self.gas_id not in Devices ):
-                Domoticz.Device(Name="Gas",  Unit=self.gas_id, Type=251, Subtype=2).Create()
-
-            # Update electric usage
-            Data = str(el_low_in)+";"+str(el_high_in)+";"+str(el_low_out)+";"+str(el_high_out)+";"+"0;0"
+            # update power usage    
+            Data = str(el_low_in)+";"+str(el_high_in)+";"+str(el_low_out)+";"+str(el_high_out)+";"+str(power_current)+";0"
             UpdateDevice( self.el_id, 0, Data)
 
-            # Update gas usage
-            UpdateDevice ( self.gas_id, 0, str(gas_in))
         except:
-            Domoticz.Error("Error at setting the energylink values!")
-        
-        return 
+            Domoticz.Error("Error at setting the Gas values!")
+
+        return
 
     # TODO: Verify it works...
-    # Update 11-05-2018, UNTESTED! NEED HELP!!!
-    def full_Energylinks(self, jsonData):
+    # Update 11-05-2018, Partly works. Only need to update the current usage... 
+    def Energylinks_Totals(self, strData):
+
+        global gas_previous
+        global el_low_in
+        global el_low_out
+        global el_high_in
+        global el_high_out
+
         try:
-            el_no = len(self.GetValue(jsonData["response"], "energylinks",{}))
-            Domoticz.Log("No. of Energylinks found: " + str(el_no))
+            el_no = len(strData["response"])
+            Domoticz.Debug("No. of Energylinks found: " + str(el_no))
+
             # If no energylinks, return
             if ( el_no == 0 ):
                 return
 
-            
-            el_current = self.GetValue(jsonData["response"][0]["used"]["po"])
-            el_total = self.GetValue(jsonData["response"][0]["used"]["dayTotal"])
-            Domoticz.Debug("Current Energy usage: " + str(el_current))
-            Domoticz.Debug("Day total Energy usage: " + str(el_total))
-            Data = str(el_current) + ";" + str(el_total)
-            UpdateDevice( self.el_id, 0, Data)
-            
-        except:
-            Domoticz.Error("Error at setting the full energylink values!")
+            el_low_in = round(self.GetValue(strData["response"][0], "consumed", 0) , 0)
+            el_low_out = self.GetValue(strData["response"][0], "produced", 0)
+    
+            el_high_in = round(self.GetValue(strData["response"][1], "consumed", 0) , 0)
+            el_high_out = self.GetValue(strData["response"][1], "produced", 0)
 
+            Domoticz.Debug("Data Found low in : "+str(el_low_in)+" high in: "+str(el_high_in)+" low out: "+str(el_low_out)+" high out: "+str(el_high_out))
+
+            gas_in = self.GetValue(strData["response"][2], "consumed", 0)
+            # Update gas usage
+
+            if ( gas_in == 0 ):
+                return
+
+            if ( self.gas_id not in Devices ):
+                Domoticz.Device(Name="Gas",  Unit=self.gas_id, Type=251, Subtype=2).Create()
+
+            if  gas_previous == gas_in:
+                Domoticz.Debug("Gas Data previous Found : "+str(gas_previous)+" is equal to new value : "+str(gas_in))
+            else:    
+                Domoticz.Debug("Gas Data Found : "+str(gas_previous)+" and new value : "+str(gas_in))
+                UpdateDevice ( self.gas_id, 0, str(gas_in))
+                gas_previous = gas_in
+
+        except:
+            Domoticz.Error("Error at setting the energylink values!")
+                
+        return 
 
     # TODO: Verify it works...
     # Update 11-05-2018 - PLEASE TEST
-    def Heatlinks(self, jsonData):
+    def Heatlinks(self, strData):
+
         try:
-            hl_no = len(self.GetValue(jsonData["response"], "heatlinks",{}))
-            Domoticz.Log("No. of Heatlinks found: " + str(hl_no))
+            hl_no = len(self.GetValue(strData["response"], "heatlinks",{}))
+            Domoticz.Debug("No. of Heatlinks found: " + str(hl_no))
 
             # If no heatlinks, return
             if ( hl_no == 0 ):
@@ -566,27 +642,40 @@ class BasePlugin:
             if ( self.hl_heating not in Devices ):
                 Domoticz.Device(Name='HL Heating',  Unit=self.hl_heating, TypeName="Switch").Create()
 
+            # Temp exist? If not create it.
+            if ( self.hl_rte not in Devices ):
+                Domoticz.Device(Name='HL Temp', Unit=self.hl_rte, TypeName="Temperature").Create()
+
+            # WaterTemp exist? If not create it.
+            if ( self.hl_wte not in Devices ):
+                Domoticz.Device(Name='HL WaterTemp', Unit=self.hl_wte, TypeName="Temperature").Create()
+
             # Set the pump switch value
-            hl_state = self.GetValue(jsonData["response"]["heatlinks"][0], "pump", "off").lower()
+            hl_state = self.GetValue(strData["response"]["heatlinks"][0], "pump", "off").lower()
             if ( str(hl_state).lower() == "on" ):
                 hl_state = "1"
             else:
-                hl_state = "0"
-                
+                hl_state = "0"                
             UpdateDevice(self.hl_pump, int(hl_state), "")
 
-
             # Set the heating switch value
-            hl_state = self.GetValue(jsonData["response"]["heatlinks"][0], "heating", "off").lower()
+            hl_state = self.GetValue(strData["response"]["heatlinks"][0], "heating", "off").lower()
             if ( str(hl_state).lower() == "on" ):
                 hl_state = "1"
             else:
-                hl_state = "0"
-                
+                hl_state = "0"                
             UpdateDevice(self.hl_heating, int(hl_state), "")
+
+            # Set the roomtemp value
+            hl_state = self.GetValue(strData["response"]["heatlinks"][0], "rte", 0)
+            UpdateDevice(self.hl_rte, 0, int(hl_state))
+
+            # Set watertemp value 
+            hl_state = self.GetValue(strData["response"]["heatlinks"][0], "wte", 0)
+            UpdateDevice(self.hl_wte, 0, int(hl_state))
             
         except:
-            Domoticz.Error("Error at setting the heatlink values!")
+            Domoticz.Error("Error at getting the heatlink values!")
         
         return
     
