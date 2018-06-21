@@ -46,11 +46,7 @@ class BasePlugin:
     hw_types = {}
     sendMessage = ""
     FullUpdate = 20
-    el_low_in = 0
-    el_low_out = 0
-    el_high_in = 0
-    el_high_out = 0
-    el_tariff = 1
+    en_dayTotal = 0
     gas_previous = 0
     
     #Const
@@ -392,7 +388,11 @@ class BasePlugin:
                 Domoticz.Device(Name="Energymeter",  Unit=self.en_id+i, TypeName="kWh").Create()
             en_0 = self.GetValue(Energymeter, "po", "0")
             en_1 = self.GetValue(Energymeter, "dayTotal", "0")
-            UpdateDevice(self.en_id+i, 0, str(en_0)+";"+str(en_1 * 1000))
+            if en_1 == "0":
+                UpdateDevice(self.en_id+i, 0, str(en_0)+";"+str(self.en_dayTotal * 1000))
+            else:
+                self.en_dayTotal = en_1
+                UpdateDevice(self.en_id+i, 0, str(en_0)+";"+str(en_1 * 1000))
             i = i + 1
         return
 
