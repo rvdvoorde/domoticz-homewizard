@@ -46,6 +46,11 @@ class BasePlugin:
     hw_types = {}
     sendMessage = ""
     FullUpdate = 20
+    el_low_in = 0
+    el_low_out = 0
+    el_high_in = 0
+    el_high_out = 0
+    el_tariff = 1
     en_dayTotal = 0
     gas_previous = 0
     
