@@ -285,7 +285,7 @@ class BasePlugin:
             self.sendMessage = "sw/dim/"+str(hw_id)+"/"+str(Level)
             
         # Is it a Somfy?
-        elif  ( self.hw_types[str(Unit)] == "somfy"):
+        elif  ( self.hw_types[str(Unit)] == "somfy") or ( self.hw_types[str(Unit)] == "brel"):
             if ( str(Command).lower() == "on" ):
                 self.sendMessage = "sf/"+str(hw_id)+"/down"
             elif ( str(Command).lower() == "stop" ):
@@ -416,7 +416,7 @@ class BasePlugin:
                     Domoticz.Device(Name=sw_name,  Unit=sw_id, TypeName="Switch").Create()                
                 elif ( sw_type == "dimmer" ):
                     Domoticz.Device(Name=sw_name,  Unit=sw_id, Type=244, Subtype=73, Switchtype=7).Create()
-                elif ( sw_type == "somfy" ) or ( sw_type == "asun" ):
+                elif ( sw_type == "somfy" ) or ( sw_type == "asun" )  or ( sw_type == "brel" ):
                     Domoticz.Device(Name=sw_name,  Unit=sw_id, Type=244, Subtype=73, Switchtype=15).Create()
 
             if ( str(sw_status).lower() == "on" ):
@@ -429,11 +429,11 @@ class BasePlugin:
                 
             # Update the switch status
             try:
-                if ( sw_type == "switch" ) or ( sw_type == "virtual" ):
-                    UpdateDevice(sw_id, int(sw_status), "")            
+                if ( sw_type == "switch" ) or ( sw_type == "virtual" ) or ( sw_type == "asun" ):
+                    UpdateDevice(sw_id, int(sw_status), "")
                 elif ( sw_type == "dimmer" ):                
                     UpdateDevice(sw_id, int(sw_status), str(Switch["dimlevel"]))
-                elif ( sw_type == "somfy" ):
+                elif ( sw_type == "somfy" ) or ( sw_type == "brel" ):
                     UpdateDevice(sw_id, int(Switch["mode"]), "")
             except:
                 Domoticz.Error("Error at setting device status! Switches: "+sw_name)
