@@ -69,11 +69,9 @@ class BasePlugin:
     el_high_in = 0
     el_high_out = 0
     el_tariff = 1
-    hl_pr1 = 0
-    hl_pr2 = 0
-    hl_pr3 = 0
-    hl_pr4 = 0
-
+    en_dayTotal = 0
+    gas_previous = 0
+    
     #Const
     term_id = 111
     en_id= 101
@@ -94,7 +92,11 @@ class BasePlugin:
     hl_tte = 131        # target Temperature
     hl_wte = 132        # Water temerature
     hl_ofc = 133        # Foutcode
-    hl_odc = 134        # Diagnostic code
+    hl_odc = 134        # Diagnostic code    
+    hl_pr1 = 0
+    hl_pr2 = 0
+    hl_pr3 = 0
+    hl_pr4 = 0
     hl_preset_id = 140  # heatlink presets
     hl_setpoint_id = 141 # set temp device
     UpdateCount = 20
@@ -491,6 +493,13 @@ class BasePlugin:
             en_1 = self.GetValue(Energymeter, "dayTotal", "0")
             UpdateDevice(self.en_id+i, 0, str(en_0)+";"+str(en_1 * 1000))
             i += 1
+
+            if en_1 == "0":
+                UpdateDevice(self.en_id+i, 0, str(en_0)+";"+str(self.en_dayTotal * 1000))
+            else:
+                self.en_dayTotal = en_1
+                UpdateDevice(self.en_id+i, 0, str(en_0)+";"+str(en_1 * 1000))
+            i = i + 1
         return
 
 
