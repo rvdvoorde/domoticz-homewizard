@@ -1,11 +1,11 @@
 ##           Homewizard Plugin
 ##
 ##           Author:         Raymond Van de Voorde
-##           Version:        2.0.26
-##           Last modified:  11-05-2018
+##           Version:        2.0.27
+##           Last modified:  01-03-2019
 ##
 """
-<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.26" externallink="https://www.homewizard.nl/">
+<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.27" externallink="https://www.homewizard.nl/">
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1" />
         <param field="Port" label="Port" width="200px" required="true" default="80" />
@@ -285,7 +285,7 @@ class BasePlugin:
             self.sendMessage = "sw/dim/"+str(hw_id)+"/"+str(Level)
             
         # Is it a Somfy?
-        elif  ( self.hw_types[str(Unit)] == "somfy"):
+        elif  ( self.hw_types[str(Unit)] == "somfy") or ( self.hw_types[str(Unit)] == "brel"):
             if ( str(Command).lower() == "on" ):
                 self.sendMessage = "sf/"+str(hw_id)+"/down"
             elif ( str(Command).lower() == "stop" ):
@@ -416,7 +416,7 @@ class BasePlugin:
                     Domoticz.Device(Name=sw_name,  Unit=sw_id, TypeName="Switch").Create()                
                 elif ( sw_type == "dimmer" ):
                     Domoticz.Device(Name=sw_name,  Unit=sw_id, Type=244, Subtype=73, Switchtype=7).Create()
-                elif ( sw_type == "somfy" ) or ( sw_type == "asun" ):
+                elif ( sw_type == "somfy" ) or ( sw_type == "asun" )  or ( sw_type == "brel" ):
                     Domoticz.Device(Name=sw_name,  Unit=sw_id, Type=244, Subtype=73, Switchtype=15).Create()
 
             if ( str(sw_status).lower() == "on" ):
@@ -429,11 +429,16 @@ class BasePlugin:
                 
             # Update the switch status
             try:
+<<<<<<< HEAD
                 if ( sw_type == "switch" ) or ( sw_type == "virtual" ) or ( sw_type == "proswitch" ):
                     UpdateDevice(sw_id, int(sw_status), "")            
+=======
+                if ( sw_type == "switch" ) or ( sw_type == "virtual" ) or ( sw_type == "asun" ):
+                    UpdateDevice(sw_id, int(sw_status), "")
+>>>>>>> c9e6e95886ea8f9764563e1e9de7f2bc3ad50896
                 elif ( sw_type == "dimmer" ):                
                     UpdateDevice(sw_id, int(sw_status), str(Switch["dimlevel"]))
-                elif ( sw_type == "somfy" ):
+                elif ( sw_type == "somfy" ) or ( sw_type == "brel" ):
                     UpdateDevice(sw_id, int(Switch["mode"]), "")
             except:
                 Domoticz.Error("Error at setting device status! Switches: "+sw_name)
