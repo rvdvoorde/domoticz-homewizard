@@ -1,15 +1,15 @@
 ##           Homewizard Plugin
 ##
 ##           Author:         Raymond Van de Voorde
-##           Version:        2.0.27
+##           Version:        2.0.28
 ##           Last modified:  01-03-2019
 ##
 """
-<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.27" externallink="https://www.homewizard.nl/">
+<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.28" externallink="https://www.homewizard.nl/">
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1" />
         <param field="Port" label="Port" width="200px" required="true" default="80" />
-    <param field="Password" label="Password" width="200px" required="true" default="1234" />
+		<param field="Password" label="Password" password width="200px" required="true" default="1234" />
         <param field="Mode1" label="Poll interval" width="100px" required="true" default=15 />
         <param field="Mode2" label="Full update after x polls" width="100px" required="true" default=10 />
         
@@ -480,6 +480,8 @@ class BasePlugin:
                     Domoticz.Device(Name=sens_name,  Unit=sens_id, Type=244, Switchtype=12).Create()
                 elif ( sens_type == "leakage" ):
                     Domoticz.Device(Name=sens_name,  Unit=sens_id, Type=32 , Switchtype=8).Create()      
+                elif ( sens_type == "unknown" ):
+                    Domoticz.Device(Name=sens_name,  Unit=sens_id, Type=17 , Switchtype=2).Create()      
 
             # Update the sensors
             sens_status = str(self.GetValue(Sensor, "status", "no")).lower()                                
