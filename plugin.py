@@ -9,10 +9,9 @@
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1" />
         <param field="Port" label="Port" width="200px" required="true" default="80" />
-		<param field="Password" label="Password" password width="200px" required="true" default="1234" />
+        <param field="Password" label="Password" width="200px" required="true" default="1234" />
         <param field="Mode1" label="Poll interval" width="100px" required="true" default=15 />
-        <param field="Mode2" label="Full update after x polls" width="100px" required="true" default=10 />
-        
+        <param field="Mode2" label="Full update after x polls" width="100px" required="true" default=10 />        
         <param field="Mode6" label="Debug" width="75px">
             <options>
                 <option label="True" value="Debug"/>
