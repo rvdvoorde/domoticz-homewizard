@@ -429,13 +429,10 @@ class BasePlugin:
                 
             # Update the switch status
             try:
-<<<<<<< HEAD
                 if ( sw_type == "switch" ) or ( sw_type == "virtual" ) or ( sw_type == "proswitch" ):
                     UpdateDevice(sw_id, int(sw_status), "")            
-=======
                 if ( sw_type == "switch" ) or ( sw_type == "virtual" ) or ( sw_type == "asun" ):
                     UpdateDevice(sw_id, int(sw_status), "")
->>>>>>> c9e6e95886ea8f9764563e1e9de7f2bc3ad50896
                 elif ( sw_type == "dimmer" ):                
                     UpdateDevice(sw_id, int(sw_status), str(Switch["dimlevel"]))
                 elif ( sw_type == "somfy" ) or ( sw_type == "brel" ):
