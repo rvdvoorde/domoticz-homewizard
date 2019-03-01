@@ -412,7 +412,7 @@ class BasePlugin:
             self.hw_types.update({str(sw_id): sw_type})
             
             if ( sw_id not in Devices ):                
-                if ( sw_type == "switch" ) or ( sw_type == "virtual" ):
+                if ( sw_type == "switch" ) or ( sw_type == "virtual" ) or ( sw_type == "proswitch" ):
                     Domoticz.Device(Name=sw_name,  Unit=sw_id, TypeName="Switch").Create()                
                 elif ( sw_type == "dimmer" ):
                     Domoticz.Device(Name=sw_name,  Unit=sw_id, Type=244, Subtype=73, Switchtype=7).Create()
@@ -429,7 +429,7 @@ class BasePlugin:
                 
             # Update the switch status
             try:
-                if ( sw_type == "switch" ) or ( sw_type == "virtual" ):
+                if ( sw_type == "switch" ) or ( sw_type == "virtual" ) or ( sw_type == "proswitch" ):
                     UpdateDevice(sw_id, int(sw_status), "")            
                 elif ( sw_type == "dimmer" ):                
                     UpdateDevice(sw_id, int(sw_status), str(Switch["dimlevel"]))
