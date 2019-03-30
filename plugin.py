@@ -1,11 +1,11 @@
 ##           Homewizard Plugin
 ##
 ##           Author:         Raymond Van de Voorde
-##           Version:        2.0.28
-##           Last modified:  01-03-2019
+##           Version:        2.0.29
+##           Last modified:  30-03-2019
 ##
 """
-<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.28" externallink="https://www.homewizard.nl/">
+<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.29" externallink="https://www.homewizard.nl/">
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1" />
         <param field="Port" label="Port" width="200px" required="true" default="80" />
@@ -609,21 +609,21 @@ class BasePlugin:
 
             Domoticz.Debug("Data Found low in : "+str(el_low_in)+" high in: "+str(el_high_in)+" low out: "+str(el_low_out)+" high out: "+str(el_high_out))
 
-            gas_in = self.GetValue(strData["response"][2], "consumed", 0)
+            #gas_in = self.GetValue(strData["response"][2], "consumed", 0)
             # Update gas usage
 
-            if ( gas_in == 0 ):
-                return
+            #if ( gas_in == 0 ):
+            #    return
 
-            if ( self.gas_id not in Devices ):
-                Domoticz.Device(Name="Gas",  Unit=self.gas_id, Type=251, Subtype=2).Create()
+            #if ( self.gas_id not in Devices ):
+            #    Domoticz.Device(Name="Gas",  Unit=self.gas_id, Type=251, Subtype=2).Create()
 
-            if  gas_previous == gas_in:
-                Domoticz.Debug("Gas Data previous Found : "+str(gas_previous)+" is equal to new value : "+str(gas_in))
-            else:    
-                Domoticz.Debug("Gas Data Found : "+str(gas_previous)+" and new value : "+str(gas_in))
-                UpdateDevice ( self.gas_id, 0, str(gas_in))
-                gas_previous = gas_in
+            #if  gas_previous == gas_in:
+            #    Domoticz.Debug("Gas Data previous Found : "+str(gas_previous)+" is equal to new value : "+str(gas_in))
+            #else:    
+            #    Domoticz.Debug("Gas Data Found : "+str(gas_previous)+" and new value : "+str(gas_in))
+            #    UpdateDevice ( self.gas_id, 0, str(gas_in))
+            #    gas_previous = gas_in
 
         except:
             Domoticz.Error("Error at setting the energylink values!")
@@ -653,6 +653,15 @@ class BasePlugin:
             # Temp exist? If not create it.
             if ( self.hl_rte not in Devices ):
                 Domoticz.Device(Name='HL Temp', Unit=self.hl_rte, TypeName="Temperature").Create()
+			
+	    #ADDED BY AZ
+	    # Setpoint exist? If not create it.
+            if ( self.hl_tte not in Devices ):
+                Domoticz.Device(Name='HL Target', Unit=self.hl_tte, TypeName="Temperature").Create()
+		
+            if ( self.hl_rsp not in Devices ):
+                Domoticz.Device(Name='HL TargetMan', Unit=self.hl_rsp, TypeName="Temperature").Create()
+            # END ADDED
 
             # WaterTemp exist? If not create it.
             if ( self.hl_wte not in Devices ):
@@ -674,13 +683,22 @@ class BasePlugin:
                 hl_state = "0"                
             UpdateDevice(self.hl_heating, int(hl_state), "")
 
-            # Set the roomtemp value
+            # Set the roomtemp value  //CHANGED INT TO ROUND 
             hl_state = self.GetValue(strData["response"]["heatlinks"][0], "rte", 0)
-            UpdateDevice(self.hl_rte, 0, int(hl_state))
+            UpdateDevice(self.hl_rte, 0, round(hl_state,1)) 
 
-            # Set watertemp value 
+	    #ADDED BY AZSYSTEM
+	    # Set the target value
+            hl_state = self.GetValue(strData["response"]["heatlinks"][0], "tte", 0)
+            UpdateDevice(self.hl_tte, 0, round(hl_state,1))
+            
+            hl_state = self.GetValue(strData["response"]["heatlinks"][0], "rsp", 0)
+            UpdateDevice(self.hl_rsp, 0, round(hl_state,1))            
+	    #END ADDED 
+
+            # Set watertemp value  //CHANGED INT TO ROUND 
             hl_state = self.GetValue(strData["response"]["heatlinks"][0], "wte", 0)
-            UpdateDevice(self.hl_wte, 0, int(hl_state))
+            UpdateDevice(self.hl_wte, 0, round(hl_state,1))
             
         except:
             Domoticz.Error("Error at getting the heatlink values!")
