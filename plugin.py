@@ -601,29 +601,25 @@ class BasePlugin:
             if ( el_no == 0 ):
                 return
 
-            el_low_in = round(self.GetValue(strData["response"][0], "consumed", 0) , 0)
-            el_low_out = self.GetValue(strData["response"][0], "produced", 0)
+            el_low_in = int(self.GetValue(strData["response"][0], "consumed", 0) * 100)
+            el_low_out = int(self.GetValue(strData["response"][0], "produced", 0) * 100)
     
-            el_high_in = round(self.GetValue(strData["response"][1], "consumed", 0) , 0)
-            el_high_out = self.GetValue(strData["response"][1], "produced", 0)
+            el_high_in = int(self.GetValue(strData["response"][1], "consumed", 0) * 100)
+            el_high_out = int(self.GetValue(strData["response"][1], "produced", 0) * 100)
 
             Domoticz.Debug("Data Found low in : "+str(el_low_in)+" high in: "+str(el_high_in)+" low out: "+str(el_low_out)+" high out: "+str(el_high_out))
 
-            #gas_in = self.GetValue(strData["response"][2], "consumed", 0)
+            gas_in = int(self.GetValue(strData["response"][2], "consumed", 0) * 100)
+            Domoticz.Debug("Gas Data found: " +str(gas_in))
             # Update gas usage
 
-            #if ( gas_in == 0 ):
-            #    return
+            if ( gas_in == 0 ):
+                return
 
-            #if ( self.gas_id not in Devices ):
-            #    Domoticz.Device(Name="Gas",  Unit=self.gas_id, Type=251, Subtype=2).Create()
+            if ( self.gas_id not in Devices ):
+                Domoticz.Device(Name="Gas",  Unit=self.gas_id, Type=251, Subtype=2).Create()
 
-            #if  gas_previous == gas_in:
-            #    Domoticz.Debug("Gas Data previous Found : "+str(gas_previous)+" is equal to new value : "+str(gas_in))
-            #else:    
-            #    Domoticz.Debug("Gas Data Found : "+str(gas_previous)+" and new value : "+str(gas_in))
-            #    UpdateDevice ( self.gas_id, 0, str(gas_in))
-            #    gas_previous = gas_in
+            UpdateDevice ( self.gas_id, 0, str(gas_in))
 
         except:
             Domoticz.Error("Error at setting the energylink values!")
