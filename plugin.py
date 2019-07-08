@@ -251,6 +251,8 @@ class BasePlugin:
             elif ( self.hw_route == "/preset" ):                                            
                 UpdateDevice(self.preset_id, 2, self.LastLevel)                
                 
+            elif ( self.hw_route == "/hl" ):
+                UpdateDevice(self.hl_tte, 0, self.LastLevel);
             else:
                 Domoticz.Debug("Unhandled route received! (" + self.hw_route+")")
                 
@@ -278,6 +280,12 @@ class BasePlugin:
             self.hwConnect(self.sendMessage)
             return True
         
+        # It's the heatlink
+        if ( Unit == self.hl_tte ) and ( str(Command) == "Set Level" ):
+            self.sendMessage = "hl/0/settarget/" + str(Level)
+            self.hwConnect(self.sendMessage)
+            return True
+
         # Is it a dimmer?
         Domoticz.Debug("Detected hardware: "+self.hw_types[str(Unit)])        
         if ( str(Command) == "Set Level" ):
@@ -653,7 +661,7 @@ class BasePlugin:
 	    #ADDED BY AZ
 	    # Setpoint exist? If not create it.
             if ( self.hl_tte not in Devices ):
-                Domoticz.Device(Name='HL Target', Unit=self.hl_tte, TypeName="Temperature").Create()
+                Domoticz.Device(Name='HL Thermostat', Unit=self.hl_tte, Type=242, Subtype=1).Create()
 		
             if ( self.hl_rsp not in Devices ):
                 Domoticz.Device(Name='HL TargetMan', Unit=self.hl_rsp, TypeName="Temperature").Create()
