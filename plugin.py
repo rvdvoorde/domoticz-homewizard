@@ -609,15 +609,15 @@ class BasePlugin:
             if ( el_no == 0 ):
                 return
 
-            el_low_in = int(self.GetValue(strData["response"][0], "consumed", 0) * 100)
-            el_low_out = int(self.GetValue(strData["response"][0], "produced", 0) * 100)
+            el_low_in = int(self.GetValue(strData["response"][0], "consumed", 0) * 1000)
+            el_low_out = int(self.GetValue(strData["response"][0], "produced", 0) * 1000)
     
-            el_high_in = int(self.GetValue(strData["response"][1], "consumed", 0) * 100)
-            el_high_out = int(self.GetValue(strData["response"][1], "produced", 0) * 100)
+            el_high_in = int(self.GetValue(strData["response"][1], "consumed", 0) * 1000)
+            el_high_out = int(self.GetValue(strData["response"][1], "produced", 0) * 1000)
 
             Domoticz.Debug("Data Found low in : "+str(el_low_in)+" high in: "+str(el_high_in)+" low out: "+str(el_low_out)+" high out: "+str(el_high_out))
 
-            gas_in = int(self.GetValue(strData["response"][2], "consumed", 0) * 100)
+            gas_in = int(self.GetValue(strData["response"][2], "consumed", 0) * 1000)
             Domoticz.Debug("Gas Data found: " +str(gas_in))
             # Update gas usage
 
