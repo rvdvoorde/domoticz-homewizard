@@ -13,8 +13,8 @@ It currently supports the following hardware:
 <li>Rainmeter</li>
 <li>Wattcher</li>
 <li>Virtual switches</li>
-<li>Heatlink</li>
-<li>Energylink (untested by me)</li>
+<li>Heatlink (Thanks to HemeraOne)</li>
+<li>Energylink (Thanks to HemeraOne)</li>
 <li>Light sensor (untested by me)</li>
 </ul>
 
