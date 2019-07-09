@@ -1,15 +1,15 @@
 ##           Homewizard Plugin
 ##
 ##           Author:         Raymond Van de Voorde
-##           Version:        2.0.29
-##           Last modified:  30-03-2019
+##           Version:        2.0.30
+##           Last modified:  09-07-2019
 ##
 """
-<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.29" externallink="https://www.homewizard.nl/">
+<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.30" externallink="https://www.homewizard.nl/">
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1" />
         <param field="Port" label="Port" width="200px" required="true" default="80" />
-        <param field="Password" label="Password" width="200px" required="true" default="1234" />
+        <param field="Password" label="Password" width="200px" required="true" default="1234" password="true" />
         <param field="Mode1" label="Poll interval" width="100px" required="true" default=15 />
         <param field="Mode2" label="Full update after x polls" width="100px" required="true" default=10 />        
         <param field="Mode6" label="Debug" width="75px">
@@ -150,7 +150,7 @@ class BasePlugin:
 
                 if ( len(Response["response"]["energylinks"]) != 0 ):
                     self.Energylinks(Response)
- 
+
                 if ( len(Response["response"]["heatlinks"]) != 0 ):
                     self.Heatlinks(Response)
 
@@ -503,8 +503,6 @@ class BasePlugin:
                     
         return
 
-    # TODO: Verify it works...
-    # Update 11-05-2018, UNTESTED! NEED HELP!!!
     def Energylinks(self, strData):
 
         global el_tariff
@@ -591,10 +589,7 @@ class BasePlugin:
 
         return
 
-    # TODO: Verify it works...
-    # Update 11-05-2018, Partly works. Only need to update the current usage... 
     def Energylinks_Totals(self, strData):
-
         global gas_previous
         global el_low_in
         global el_low_out
@@ -611,7 +606,7 @@ class BasePlugin:
 
             el_low_in = int(self.GetValue(strData["response"][0], "consumed", 0) * 1000)
             el_low_out = int(self.GetValue(strData["response"][0], "produced", 0) * 1000)
-    
+
             el_high_in = int(self.GetValue(strData["response"][1], "consumed", 0) * 1000)
             el_high_out = int(self.GetValue(strData["response"][1], "produced", 0) * 1000)
 
@@ -634,8 +629,6 @@ class BasePlugin:
                 
         return 
 
-    # TODO: Verify it works...
-    # Update 11-05-2018 - PLEASE TEST
     def Heatlinks(self, strData):
 
         try:
@@ -657,12 +650,12 @@ class BasePlugin:
             # Temp exist? If not create it.
             if ( self.hl_rte not in Devices ):
                 Domoticz.Device(Name='HL Temp', Unit=self.hl_rte, TypeName="Temperature").Create()
-			
-	    #ADDED BY AZ
-	    # Setpoint exist? If not create it.
+
+            #ADDED BY AZ
+            # Setpoint exist? If not create it.
             if ( self.hl_tte not in Devices ):
                 Domoticz.Device(Name='HL Thermostat', Unit=self.hl_tte, Type=242, Subtype=1).Create()
-		
+
             if ( self.hl_rsp not in Devices ):
                 Domoticz.Device(Name='HL TargetMan', Unit=self.hl_rsp, TypeName="Temperature").Create()
             # END ADDED
@@ -691,14 +684,14 @@ class BasePlugin:
             hl_state = self.GetValue(strData["response"]["heatlinks"][0], "rte", 0)
             UpdateDevice(self.hl_rte, 0, round(hl_state,1)) 
 
-	    #ADDED BY AZSYSTEM
-	    # Set the target value
+            #ADDED BY AZSYSTEM
+            # Set the target value
             hl_state = self.GetValue(strData["response"]["heatlinks"][0], "tte", 0)
             UpdateDevice(self.hl_tte, 0, round(hl_state,1))
             
             hl_state = self.GetValue(strData["response"]["heatlinks"][0], "rsp", 0)
             UpdateDevice(self.hl_rsp, 0, round(hl_state,1))            
-	    #END ADDED 
+            #END ADDED 
 
             # Set watertemp value  //CHANGED INT TO ROUND 
             hl_state = self.GetValue(strData["response"]["heatlinks"][0], "wte", 0)
