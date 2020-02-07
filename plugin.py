@@ -559,7 +559,7 @@ class BasePlugin:
                 
                 #Domoticz.Debug("Data found : "+str(Energylinks))
 
-                power_current = self.GetValue(Energylinks["used"],"po", 0)
+                power_current = self.GetValue(Energylinks["aggregate"],"po", 0)
                 Domoticz.Debug("Current Energy usage: " + str(power_current))
 
                 el_total = self.GetValue(Energylinks["used"],"dayTotal", 0)
@@ -573,15 +573,21 @@ class BasePlugin:
 
         # add solar power to meter reading
         if (el_t1 == "solar") or (el_t2 == "solar"):
-            power_current = power_current + solar_po
+            power_current = int(power_current) + int(solar_po)
             el_total = el_total + solar_used
 
         try:
             if ( self.el_id not in Devices ):
                 Domoticz.Device(Name="Electricity", Unit=self.el_id, Type=250, Subtype=1).Create()
 
+            negative_power_current = 0;
             # update power usage    
-            Data = str(el_low_in)+";"+str(el_high_in)+";"+str(el_low_out)+";"+str(el_high_out)+";"+str(power_current)+";0"
+            if ( int(power_current) < 0 ) :
+                negative_power_current = abs(power_current)
+                power_current = 0
+
+
+            Data = str(el_low_in)+";"+str(el_high_in)+";"+str(el_low_out)+";"+str(el_high_out)+";"+str(power_current)+";"+str(negative_power_current)
             UpdateDevice( self.el_id, 0, Data)
 
         except:
