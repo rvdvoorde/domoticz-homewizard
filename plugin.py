@@ -1,11 +1,11 @@
 ##           Homewizard Plugin
 ##
 ##           Author:         Raymond Van de Voorde
-##           Version:        2.0.30
-##           Last modified:  09-07-2019
+##           Version:        2.0.31
+##           Last modified:  03-01-2021
 ##
 """
-<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.30" externallink="https://www.homewizard.nl/">
+<plugin key="Homewizard" name="Homewizard" author="Wobbles" version="2.0.31" externallink="https://www.homewizard.nl/">
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1" />
         <param field="Port" label="Port" width="200px" required="true" default="80" />
@@ -538,8 +538,10 @@ class BasePlugin:
 
             # if water meter connected    
             if (el_t1 == "water"):
-                water_po   = self.GetValue(Energylinks["s1"][0], "po"      , 0)
-                water_used = self.GetValue(Energylinks["s1"][0], "dayTotal", 0) / 1000
+                #water_po   = self.GetValue(Energylinks["s1"][0], "po"      , 0) # Replaced this line with line below for request #36
+                water_po   = self.GetValue(Energylinks["s1"], "po"      , 0)
+                #water_used = self.GetValue(Energylinks["s1"][0], "dayTotal", 0) / 1000  # Replaced this line with line below for request #36
+                water_used = self.GetValue(Energylinks["s1"], "dayTotal", 0) # / 1000 > see below
 
             if (el_t2 == "water"):
                 water_po   = self.GetValue(Energylinks["s2"][0], "po"      , 0)
@@ -548,8 +550,10 @@ class BasePlugin:
             if (el_t1 == "water") or (el_t2 == "water"):
                 if ( self.water_id not in Devices ):
                     Domoticz.Device(Name="Water", Unit=self.water_id, Type=113).Create()
-                Data = str(water_po)+";"+str(water_used)
-                UpdateDevice( self.el_id, 0, Data)
+                #Data = str(water_po)+";"+str(water_used) # Replaced this line with line below for request #36
+                Data = str(water_used)+";"+str(water_po)   
+                #UpdateDevice( self.el_id, 0, Data) # Replaced this line with line below for request #36
+                UpdateDevice( self.water_id, 0, Data)
         
         if ( el_no == 0 ):
             return
