@@ -293,7 +293,7 @@ class BasePlugin:
             
         # Is it a Somfy?
         elif  ( self.hw_types[str(Unit)] == "somfy") or ( self.hw_types[str(Unit)] == "brel"):
-            if ( str(Command).lower() == "on" ):
+            if ( (str(Command).lower() == "on") or (str(Command).lower() == "open") ):
                 self.sendMessage = "sf/"+str(hw_id)+"/down"
             elif ( str(Command).lower() == "stop" ):
                 self.sendMessage = "sf/"+str(hw_id)+"/stop"
